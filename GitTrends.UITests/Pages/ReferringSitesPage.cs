@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
-using GitTrends.Mobile.Shared;
+using GitTrends.Mobile.Common;
+using GitTrends.Mobile.Common.Constants;
 using Xamarin.UITest;
 using Xamarin.UITest.Android;
 using Xamarin.UITest.iOS;
@@ -8,45 +9,47 @@ using Query = System.Func<Xamarin.UITest.Queries.AppQuery, Xamarin.UITest.Querie
 
 namespace GitTrends.UITests
 {
-    class ReferringSitesPage : BasePage
-    {
-        readonly Query _collectionView, _refreshView, _closeButton, _activityIndicator;
+	class ReferringSitesPage : BaseCollectionPage<ReferringSiteModel>
+	{
+		readonly Query _collectionView, _refreshView, _closeButton, _emptyDataView;
 
-        public ReferringSitesPage(IApp app) : base(app, PageTitles.ReferringSitesPage)
-        {
-            _collectionView = GenerateMarkedQuery(ReferringSitesPageAutomationIds.CollectionView);
-            _refreshView = GenerateMarkedQuery(ReferringSitesPageAutomationIds.RefreshView);
-            _closeButton = GenerateMarkedQuery(ReferringSitesPageAutomationIds.CloseButton);
-            _activityIndicator = GenerateMarkedQuery(ReferringSitesPageAutomationIds.ActivityIndicator);
-        }
+		public ReferringSitesPage(IApp app) : base(app, () => PageTitles.ReferringSitesPage)
+		{
+			_collectionView = GenerateMarkedQuery(ReferringSitesPageAutomationIds.CollectionView);
+			_refreshView = GenerateMarkedQuery(ReferringSitesPageAutomationIds.RefreshView);
+			_closeButton = GenerateMarkedQuery(ReferringSitesPageAutomationIds.CloseButton);
+			_emptyDataView = GenerateMarkedQuery(ReferringSitesPageAutomationIds.EmptyDataView);
+		}
 
-        public bool IsActivityIndicatorRunning => App.Query(_activityIndicator).Any();
+		public bool IsEmptyDataViewVisible => App.Query(_emptyDataView).Any();
 
-        public void ClosePage()
-        {
-            switch (App)
-            {
-                case iOSApp iOSApp:
-                    iOSApp.Tap(_closeButton);
-                    break;
-                case AndroidApp androidApp:
-                    androidApp.Back();
-                    break;
-                default:
-                    throw new NotSupportedException();
-            }
-        }
+		public string ExpectedAppStoreRequestTitle => App.InvokeBackdoorMethod<string>(BackdoorMethodConstants.GetReviewRequestAppStoreTitle);
 
-        public void WaitForActivityIndicator()
-        {
-            App.WaitForElement(_activityIndicator);
-            App.Screenshot("Activity Indicator Appeared");
-        }
+		public void WaitForEmptyDataView()
+		{
+			App.WaitForElement(_emptyDataView);
+			App.Screenshot("Empty Data View Appeared");
+		}
 
-        public void WaitForNoActivityIndicator()
-        {
-            App.WaitForNoElement(_activityIndicator);
-            App.Screenshot("Activity Indicator Disappeared");
-        }
-    }
+		public void TriggerReviewRequest()
+		{
+			App.InvokeBackdoorMethod(BackdoorMethodConstants.TriggerReviewRequest);
+			App.Screenshot("Triggered Review Request");
+		}
+
+		public void ClosePage()
+		{
+			switch (App)
+			{
+				case iOSApp iOSApp:
+					iOSApp.Tap(_closeButton);
+					break;
+				case AndroidApp androidApp:
+					androidApp.Back();
+					break;
+				default:
+					throw new NotSupportedException();
+			}
+		}
+	}
 }

@@ -10,8 +10,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -21,7 +19,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>MinimumOSVersion</key>
-	<string>13.0</string>
+	<string>14.0</string>
 	<key>CFBundleDisplayName</key>
 	<string>GitTrends</string>
 	<key>CFBundleIdentifier</key>
@@ -35,6 +33,8 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>aps-environment</key>
+			<string>development OR production</string>
 			<key>CFBundleURLName</key>
 			<string>com.minnick.GitTrends</string>
 			<key>CFBundleURLSchemes</key>
@@ -45,14 +45,42 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>UIAppFonts</key>
+	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string></string>
-		<string>FontAwesomeBrands.ttf</string>
+		<string>github</string>
+		<string>twitter</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
 	</array>
 	<key>CFBundleShortVersionString</key>
-	<string>0.9.0</string>
+	<string>2.5.5</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.minnick.GitTrends.NotifyTrendingRepositories</string>
+		<string>com.minnick.GitTrends.CleanUpDatabase</string>
+	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>59</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>nl</string>
+		<string>ru</string>
+		<string>de</string>
+		<string>es</string>
+		<string>fr</string>
+		<string>pt</string>
+		<string>bs</string>
+		<string>uk</string>
+		<string>cs</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GitTrends does not require your location</string>
 </dict>
 </plist>

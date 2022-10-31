@@ -1,35 +1,47 @@
-﻿    using System;
+﻿using System;
 using System.Diagnostics;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using AsyncAwaitBestPractices;
 using Autofac;
 using Foundation;
-using GitTrends.Mobile.Shared;
-using Newtonsoft.Json;
+using GitTrends.Shared;
+using Microsoft.Azure.NotificationHubs;
+using Shiny;
 using UIKit;
 
 namespace GitTrends.iOS
 {
     [Register(nameof(AppDelegate))]
-    public class AppDelegate : global::Xamarin.Forms.Platform.iOS.FormsApplicationDelegate
+    public partial class AppDelegate : global::Xamarin.Forms.Platform.iOS.FormsApplicationDelegate
     {
         public override bool FinishedLaunching(UIApplication uiApplication, NSDictionary launchOptions)
         {
+            this.ShinyFinishedLaunching(new ShinyStartup(new DeviceNotificationsService_iOS()));
+
             global::Xamarin.Forms.Forms.Init();
+            Sharpnado.MaterialFrame.iOS.iOSMaterialFrameRenderer.Init();
+
             Syncfusion.SfChart.XForms.iOS.Renderers.SfChartRenderer.Init();
-            Syncfusion.XForms.iOS.Buttons.SfSegmentedControlRenderer.Init();
 
             FFImageLoading.Forms.Platform.CachedImageRenderer.Init();
             FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageSourceHandler();
             var ignore = typeof(FFImageLoading.Svg.Forms.SvgCachedImage);
 
-#if DEBUG
-            Xamarin.Calabash.Start();
-#endif
+            FFImageLoading.ImageService.Instance.Initialize(new FFImageLoading.Config.Configuration
+            {
+                HttpHeadersTimeout = 60,
+                HttpClient = new HttpClient(new NSUrlSessionHandler())
+            });
 
             PrintFontNamesToConsole();
 
-            LoadApplication(new App());
+            var app = ContainerService.Container.Resolve<App>();
+            LoadApplication(app);
+
+            if (launchOptions?.ContainsKey(UIApplication.LaunchOptionsLocalNotificationKey) is true)
+                HandleLocalNotification((UILocalNotification)launchOptions[UIApplication.LaunchOptionsLocalNotificationKey]).SafeFireAndForget(ex => ContainerService.Container.Resolve<IAnalyticsService>().Report(ex));
 
             return base.FinishedLaunching(uiApplication, launchOptions);
         }
@@ -38,7 +50,7 @@ namespace GitTrends.iOS
         {
             var callbackUri = new Uri(url.AbsoluteString);
 
-            HandleCallbackUri(callbackUri).SafeFireAndForget(onException: x => Debug.WriteLine(x));
+            HandleCallbackUri(callbackUri).SafeFireAndForget(onException);
 
             return true;
 
@@ -46,43 +58,66 @@ namespace GitTrends.iOS
             {
                 await ViewControllerServices.CloseSFSafariViewController().ConfigureAwait(false);
 
-                using var scope = ContainerService.Container.BeginLifetimeScope();
-                var gitHubAuthenticationService = scope.Resolve<GitHubAuthenticationService>();
-                await gitHubAuthenticationService.AuthorizeSession(callbackUri).ConfigureAwait(false);
+                var gitHubAuthenticationService = ContainerService.Container.Resolve<GitHubAuthenticationService>();
+                await gitHubAuthenticationService.AuthorizeSession(callbackUri, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            static void onException(Exception e)
+            {
+                ContainerService.Container.Resolve<IAnalyticsService>().Report(e);
             }
         }
 
-#if DEBUG
-        #region UI Test Back Door Methods
-        [Preserve, Export(BackdoorMethodConstants.SetGitHubUser + ":")]
-        public async void SetGitHubUser(NSString accessToken)
+        public override void ReceivedRemoteNotification(UIApplication application, NSDictionary userInfo)
         {
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            var backdoorService = scope.Resolve<UITestBackdoorService>();
+            var backgroundFetchService = ContainerService.Container.Resolve<BackgroundFetchService>();
 
-            await backdoorService.SetGitHubUser(accessToken.ToString()).ConfigureAwait(false);
+            backgroundFetchService.TryScheduleCleanUpDatabase();
+            backgroundFetchService.TryScheduleNotifyTrendingRepositories(CancellationToken.None);
         }
 
-        [Preserve, Export(BackdoorMethodConstants.TriggerRepositoriesPullToRefresh + ":")]
-        public async void TriggerRepositoriesPullToRefresh(NSString noValue)
+        public override async void ReceivedLocalNotification(UIApplication application, UILocalNotification notification) =>
+            await HandleLocalNotification(notification).ConfigureAwait(false);
+
+        public override async void RegisteredForRemoteNotifications(UIApplication application, NSData deviceToken)
         {
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            var backdoorService = scope.Resolve<UITestBackdoorService>();
+            var analyticsService = ContainerService.Container.Resolve<IAnalyticsService>();
+            var notificationService = ContainerService.Container.Resolve<NotificationService>();
 
-            await backdoorService.TriggerRepositoryPullToRefresh().ConfigureAwait(false);
-        }
+            var notificationHubInformation = await notificationService.GetNotificationHubInformation().ConfigureAwait(false);
 
-        [Preserve, Export(BackdoorMethodConstants.GetVisibleRepositoryList + ":")]
-        public NSString GetVisibleRepositoryList(NSString noValue)
-        {
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            var backdoorService = scope.Resolve<UITestBackdoorService>();
+            var tokenAsString = BitConverter.ToString(deviceToken.ToArray()).Replace("-", "").Replace("\"", "");
 
-            var serializedRepositoryList = JsonConvert.SerializeObject(backdoorService.GetVisibleRepositoryList());
-            return new NSString(serializedRepositoryList);
-        }
-        #endregion
+#if AppStore
+            var hubClient = NotificationHubClient.CreateClientFromConnectionString(notificationHubInformation.ConnectionString, notificationHubInformation.Name);
+#else
+            if (notificationHubInformation.IsEmpty())
+                return;
+
+            var hubClient = NotificationHubClient.CreateClientFromConnectionString(notificationHubInformation.ConnectionString_Debug, notificationHubInformation.Name_Debug);
 #endif
+            try
+            {
+                var doesRegistrationExist = await hubClient.RegistrationExistsAsync(tokenAsString).ConfigureAwait(false);
+
+                if (!doesRegistrationExist)
+                    await hubClient.CreateAppleNativeRegistrationAsync(tokenAsString).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                analyticsService.Report(e);
+            }
+        }
+
+        Task HandleLocalNotification(in UILocalNotification notification)
+        {
+            var notificationService = ContainerService.Container.Resolve<NotificationService>();
+
+            if (notification is null || notification.AlertTitle is null || notification.AlertBody is null)
+                return Task.CompletedTask;
+
+            return notificationService.HandleNotification(notification.AlertTitle, notification.AlertBody, (int)notification.ApplicationIconBadgeNumber);
+        }
 
         [Conditional("DEBUG")]
         void PrintFontNamesToConsole()

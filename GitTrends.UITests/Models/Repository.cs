@@ -1,26 +1,50 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using GitTrends.Shared;
 
 namespace GitTrends.UITests
 {
-    public class Repository : IRepository
-    {
-        public string OwnerLogin { get; set; } = string.Empty;
+	public class Repository : IRepository
+	{
+		public DateTimeOffset DataDownloadedAt { get; init; }
 
-        public int StarCount { get; set; }
+		public string OwnerLogin { get; init; } = string.Empty;
 
-        public int IssuesCount { get; set; }
+		public long StarCount { get; init; }
 
-        public string Name { get; set; } = string.Empty;
+		public long IssuesCount { get; init; }
 
-        public string Description { get; set; } = string.Empty;
+		public string Name { get; init; } = string.Empty;
 
-        public long ForkCount { get; set; }
+		public string Description { get; init; } = string.Empty;
 
-#pragma warning disable CS8613 // Nullability of reference types in return type doesn't match implicitly implemented member.
-        public Uri? OwnerAvatarUrl { get; set; }
+		public long ForkCount { get; init; }
 
-        public Uri? Uri { get; set; }
-#pragma warning restore CS8613 // Nullability of reference types in return type doesn't match implicitly implemented member.
-    }
+		public long WatchersCount { get; init; }
+
+		public string OwnerAvatarUrl { get; init; } = string.Empty;
+
+		public string Url { get; init; } = string.Empty;
+
+		public bool IsArchived { get; init; }
+
+		public RepositoryPermission Permission { get; init; }
+
+		public long? TotalViews { get; init; }
+
+		public long? TotalUniqueViews { get; init; }
+
+		public long? TotalClones { get; init; }
+
+		public long? TotalUniqueClones { get; init; }
+
+		public bool IsTrending { get; init; }
+
+		public bool? IsFavorite { get; init; }
+
+		public IReadOnlyList<DailyViewsModel>? DailyViewsList { get; init; } = Array.Empty<DailyViewsModel>();
+
+		public IReadOnlyList<DailyClonesModel>? DailyClonesList { get; init; } = Array.Empty<DailyClonesModel>();
+	}
 }

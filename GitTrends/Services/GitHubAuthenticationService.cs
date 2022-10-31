@@ -1,167 +1,176 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using AsyncAwaitBestPractices;
+using GitTrends.Mobile.Common;
+using GitTrends.Mobile.Common.Constants;
 using GitTrends.Shared;
-using Newtonsoft.Json;
-using Xamarin.Essentials;
+using Xamarin.Essentials.Interfaces;
 
 namespace GitTrends
 {
-    public class GitHubAuthenticationService
-    {
-        const string _oauthTokenKey = "OAuthToken";
-        readonly WeakEventManager<AuthorizeSessionCompletedEventArgs> _authorizeSessionCompletedEventManager = new WeakEventManager<AuthorizeSessionCompletedEventArgs>();
-        readonly WeakEventManager _authorizeSessionStartedEventManager = new WeakEventManager();
+	public class GitHubAuthenticationService
+	{
+		readonly static WeakEventManager _loggedOuteventManager = new();
+		readonly static WeakEventManager _demoUserActivatedEventManager = new();
+		readonly static WeakEventManager _authorizeSessionStartedEventManager = new();
+		readonly static WeakEventManager<AuthorizeSessionCompletedEventArgs> _authorizeSessionCompletedEventManager = new();
 
-        readonly AzureFunctionsApiService _azureFunctionsApiService;
-        readonly GitHubGraphQLApiService _gitHubGraphQLApiService;
-        readonly RepositoryDatabase _repositoryDatabase;
-        readonly AnalyticsService _analyticsService;
+		readonly IPreferences _preferences;
+		readonly IAnalyticsService _analyticsService;
+		readonly GitHubUserService _gitHubUserService;
+		readonly RepositoryDatabase _repositoryDatabase;
+		readonly GitHubGraphQLApiService _gitHubGraphQLApiService;
+		readonly AzureFunctionsApiService _azureFunctionsApiService;
+		readonly GitTrendsStatisticsService _gitTrendsStatisticsService;
 
-        string _sessionId = string.Empty;
+		public GitHubAuthenticationService(IPreferences preferences,
+											IAnalyticsService analyticsService,
+											GitHubUserService gitHubUserService,
+											RepositoryDatabase repositoryDatabase,
+											GitHubGraphQLApiService gitHubGraphQLApiService,
+											AzureFunctionsApiService azureFunctionsApiService,
+											GitTrendsStatisticsService gitTrendsStatisticsService)
+		{
+			_preferences = preferences;
+			_analyticsService = analyticsService;
+			_gitHubUserService = gitHubUserService;
+			_repositoryDatabase = repositoryDatabase;
+			_gitHubGraphQLApiService = gitHubGraphQLApiService;
+			_azureFunctionsApiService = azureFunctionsApiService;
+			_gitTrendsStatisticsService = gitTrendsStatisticsService;
 
-        public GitHubAuthenticationService(AzureFunctionsApiService azureFunctionsApiService,
-                                            GitHubGraphQLApiService gitHubGraphQLApiService,
-                                            RepositoryDatabase repositoryDatabase,
-                                            AnalyticsService analyticsService)
-        {
-            _azureFunctionsApiService = azureFunctionsApiService;
-            _gitHubGraphQLApiService = gitHubGraphQLApiService;
-            _repositoryDatabase = repositoryDatabase;
-            _analyticsService = analyticsService;
-        }
+			ThemeService.PreferenceChanged += HandlePreferenceChanged;
+			LanguageService.PreferredLanguageChanged += HandlePreferredLanguageChanged;
+		}
 
-        public event EventHandler AuthorizeSessionStarted
-        {
-            add => _authorizeSessionStartedEventManager.AddEventHandler(value);
-            remove => _authorizeSessionStartedEventManager.RemoveEventHandler(value);
-        }
+		public static event EventHandler AuthorizeSessionStarted
+		{
+			add => _authorizeSessionStartedEventManager.AddEventHandler(value);
+			remove => _authorizeSessionStartedEventManager.RemoveEventHandler(value);
+		}
 
-        public event EventHandler<AuthorizeSessionCompletedEventArgs> AuthorizeSessionCompleted
-        {
-            add => _authorizeSessionCompletedEventManager.AddEventHandler(value);
-            remove => _authorizeSessionCompletedEventManager.RemoveEventHandler(value);
-        }
+		public static event EventHandler<AuthorizeSessionCompletedEventArgs> AuthorizeSessionCompleted
+		{
+			add => _authorizeSessionCompletedEventManager.AddEventHandler(value);
+			remove => _authorizeSessionCompletedEventManager.RemoveEventHandler(value);
+		}
 
-        public bool IsAuthenticated => !string.IsNullOrWhiteSpace(Name);
+		public static event EventHandler DemoUserActivated
+		{
+			add => _demoUserActivatedEventManager.AddEventHandler(value);
+			remove => _demoUserActivatedEventManager.RemoveEventHandler(value);
+		}
 
-        public string Alias
-        {
-            get => Preferences.Get(nameof(Alias), string.Empty);
-            set => Preferences.Set(nameof(Alias), value);
-        }
+		public static event EventHandler LoggedOut
+		{
+			add => _loggedOuteventManager.AddEventHandler(value);
+			remove => _loggedOuteventManager.RemoveEventHandler(value);
+		}
 
-        public string Name
-        {
-            get => Preferences.Get(nameof(Name), string.Empty);
-            set => Preferences.Set(nameof(Name), value);
-        }
+		string MostRecentSessionId
+		{
+			get => _preferences.Get(nameof(MostRecentSessionId), string.Empty);
+			set => _preferences.Set(nameof(MostRecentSessionId), value);
+		}
 
-        public string AvatarUrl
-        {
-            get => Preferences.Get(nameof(AvatarUrl), string.Empty);
-            set => Preferences.Set(nameof(AvatarUrl), value);
-        }
+		public async Task ActivateDemoUser()
+		{
+			await LogOut().ConfigureAwait(false);
 
-        public static async Task<GitHubToken> GetGitHubToken()
-        {
-            var serializedToken = await SecureStorage.GetAsync(_oauthTokenKey).ConfigureAwait(false);
+			SetDemoUserUserValues();
 
-            try
-            {
-                var token = JsonConvert.DeserializeObject<GitHubToken>(serializedToken);
+			OnDemoUserActivated();
+		}
 
-                if (token is null)
-                    return new GitHubToken(string.Empty, string.Empty, string.Empty);
+		public string GetGitHubLoginUrl()
+		{
+			MostRecentSessionId = Guid.NewGuid().ToString();
 
-                return token;
-            }
-            catch (ArgumentNullException)
-            {
-                return new GitHubToken(string.Empty, string.Empty, string.Empty);
-            }
-            catch (JsonReaderException)
-            {
-                return new GitHubToken(string.Empty, string.Empty, string.Empty);
-            }
-        }
+			return $"{GitHubConstants.GitHubBaseUrl}/login/oauth/authorize?client_id={_gitTrendsStatisticsService.ClientId}&scope={GitHubConstants.OAuthScope}&state={MostRecentSessionId}";
+		}
 
-        public async Task<string> GetGitHubLoginUrl()
-        {
-            _sessionId = Guid.NewGuid().ToString();
+		public async Task AuthorizeSession(Uri callbackUri, CancellationToken cancellationToken)
+		{
+			OnAuthorizeSessionStarted();
 
-            var clientIdDTO = await _azureFunctionsApiService.GetGitHubClientId().ConfigureAwait(false);
+			var code = HttpUtility.ParseQueryString(callbackUri.Query).Get("code");
+			var state = HttpUtility.ParseQueryString(callbackUri.Query).Get("state");
 
-            return $"{GitHubConstants.GitHubAuthBaseUrl}/login/oauth/authorize?client_id={clientIdDTO.ClientId}&scope=repo%20read:user&state={_sessionId}";
-        }
+			try
+			{
+				if (string.IsNullOrEmpty(code))
+					throw new Exception("Invalid Authorization Code");
 
-        public async Task AuthorizeSession(Uri callbackUri)
-        {
-            OnAuthorizeSessionStarted();
+				if (state != MostRecentSessionId)
+					throw new InvalidOperationException("Invalid SessionId");
+				else
+					MostRecentSessionId = string.Empty;
 
-            var code = HttpUtility.ParseQueryString(callbackUri.Query).Get("code");
-            var state = HttpUtility.ParseQueryString(callbackUri.Query).Get("state");
+				var generateTokenDTO = new GenerateTokenDTO(code, state);
+				var token = await _azureFunctionsApiService.GenerateGitTrendsOAuthToken(generateTokenDTO, cancellationToken).ConfigureAwait(false);
 
-            try
-            {
-                if (string.IsNullOrEmpty(code))
-                    throw new Exception("Invalid Authorization Code");
+				await _gitHubUserService.SaveGitHubToken(token).ConfigureAwait(false);
 
-                if (state != _sessionId)
-                    throw new InvalidOperationException("Invalid SessionId");
+				var (login, name, avatarUri) = await _gitHubGraphQLApiService.GetCurrentUserInfo(cancellationToken).ConfigureAwait(false);
 
-                _sessionId = string.Empty;
+				_gitHubUserService.Name = name;
+				_gitHubUserService.Alias = login;
+				_gitHubUserService.AvatarUrl = avatarUri.ToString();
 
-                var generateTokenDTO = new GenerateTokenDTO(code, state);
-                var token = await _azureFunctionsApiService.GenerateGitTrendsOAuthToken(generateTokenDTO).ConfigureAwait(false);
+				OnAuthorizeSessionCompleted(true);
+			}
+			catch (Exception e)
+			{
+				_analyticsService.Report(e);
 
-                await SaveGitHubToken(token).ConfigureAwait(false);
+				OnAuthorizeSessionCompleted(false);
+				throw;
+			}
+		}
 
-                var (login, name, avatarUri) = await _gitHubGraphQLApiService.GetCurrentUserInfo().ConfigureAwait(false);
+		public async Task LogOut()
+		{
+			_gitHubUserService.Alias = string.Empty;
+			_gitHubUserService.Name = string.Empty;
+			_gitHubUserService.AvatarUrl = string.Empty;
 
-                Alias = login;
-                Name = name;
-                AvatarUrl = avatarUri.ToString();
+			_gitHubUserService.InvalidateToken();
+			await _repositoryDatabase.DeleteAllData().ConfigureAwait(false);
 
-                OnAuthorizeSessionCompleted(true);
-            }
-            catch (Exception e)
-            {
-                _analyticsService.Report(e);
+			OnLoggedOut();
+		}
 
-                OnAuthorizeSessionCompleted(false);
-                throw;
-            }
-        }
+		void HandlePreferenceChanged(object sender, PreferredTheme e)
+		{
+			//Ensure the Demo User Avatar matches the PreferredTheme
+			if (_gitHubUserService.IsDemoUser)
+				SetDemoUserUserValues();
+		}
 
-        public Task LogOut()
-        {
-            Alias = string.Empty;
-            Name = string.Empty;
-            AvatarUrl = string.Empty;
+		void HandlePreferredLanguageChanged(object sender, string? e)
+		{
+			//Update Demo User Translations
+			if (_gitHubUserService.IsDemoUser)
+				SetDemoUserUserValues();
+		}
 
-            return Task.WhenAll(InvalidateToken(), _repositoryDatabase.DeleteAllData());
-        }
+		void SetDemoUserUserValues()
+		{
+			_gitHubUserService.Name = DemoUserConstants.Name;
+			_gitHubUserService.Alias = DemoUserConstants.Alias;
+			_gitHubUserService.AvatarUrl = BaseTheme.GetGitTrendsImageSource();
+		}
 
-        internal Task SaveGitHubToken(GitHubToken token)
-        {
-            if (token is null)
-                throw new ArgumentNullException(nameof(token));
+		void OnAuthorizeSessionCompleted(bool isSessionAuthorized) =>
+		   _authorizeSessionCompletedEventManager.RaiseEvent(this, new AuthorizeSessionCompletedEventArgs(isSessionAuthorized), nameof(AuthorizeSessionCompleted));
 
-            if (token.AccessToken is null)
-                throw new ArgumentNullException(nameof(token.AccessToken));
+		void OnAuthorizeSessionStarted() =>
+		   _authorizeSessionStartedEventManager.RaiseEvent(this, EventArgs.Empty, nameof(AuthorizeSessionStarted));
 
-            var serializedToken = JsonConvert.SerializeObject(token);
-            return SecureStorage.SetAsync(_oauthTokenKey, serializedToken);
-        }
+		void OnLoggedOut() => _loggedOuteventManager.RaiseEvent(this, EventArgs.Empty, nameof(LoggedOut));
 
-        Task InvalidateToken() => SecureStorage.SetAsync(_oauthTokenKey, string.Empty);
-
-        void OnAuthorizeSessionCompleted(bool isSessionAuthorized) =>
-           _authorizeSessionCompletedEventManager.HandleEvent(null, new AuthorizeSessionCompletedEventArgs(isSessionAuthorized), nameof(AuthorizeSessionCompleted));
-
-        void OnAuthorizeSessionStarted() =>
-           _authorizeSessionStartedEventManager.HandleEvent(null, EventArgs.Empty, nameof(AuthorizeSessionStarted));
-    }
+		void OnDemoUserActivated() => _demoUserActivatedEventManager.RaiseEvent(this, EventArgs.Empty, nameof(DemoUserActivated));
+	}
 }

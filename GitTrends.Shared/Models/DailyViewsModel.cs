@@ -3,17 +3,12 @@ using Newtonsoft.Json;
 
 namespace GitTrends.Shared
 {
-    public class DailyViewsModel : BaseDailyModel
-    {
-        public DailyViewsModel(DateTimeOffset timestamp, long count, long uniques) : base(timestamp, count, uniques)
-        {
+	public record DailyViewsModel(DateTimeOffset Timestamp, long Count, long Uniques) : BaseDailyModel(Timestamp, Count, Uniques), IDailyViewsModel
+	{
+		[JsonIgnore]
+		public long TotalViews => TotalCount;
 
-        }
-
-        [JsonIgnore]
-        public long TotalViews => TotalCount;
-
-        [JsonIgnore]
-        public long TotalUniqueViews => TotalUniqueCount;
-    }
+		[JsonIgnore]
+		public long TotalUniqueViews => TotalUniqueCount;
+	}
 }

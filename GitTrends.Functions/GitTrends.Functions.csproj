@@ -1,29 +1,23 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>netcoreapp3.1</TargetFramework>
-        <AzureFunctionsVersion>v3</AzureFunctionsVersion>
-        <LangVersion>latest</LangVersion>
-        <Nullable>enable</Nullable>
-        <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
-    </PropertyGroup>
-    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'AppStore|AnyCPU' ">
-      <IntermediateOutputPath>obj\AppStore</IntermediateOutputPath>
-      <DebugType></DebugType>
-      <Optimize>false</Optimize>
-      <OutputPath>bin\AppStore</OutputPath>
-      <DefineConstants></DefineConstants>
-      <NoWarn></NoWarn>
-      <LangVersion>Default</LangVersion>
-      <NoStdLib>false</NoStdLib>
-      <Nullable></Nullable>
+        <TargetFramework>net6.0</TargetFramework>
+        <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+        <OutputType>Exe</OutputType>
+        <_FunctionsSkipCleanOutput>true</_FunctionsSkipCleanOutput>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.0.3" />
-        <PackageReference Include="Xamarin.Essentials" Version="1.5.0-pre1" />
-        <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.0.0" />
-        <PackageReference Include="Refit.HttpClientFactory" Version="5.0.23" />
-        <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="3.1.2" />
+        <PackageReference Include="GitHubApiStatus.Extensions" Version="2.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="6.0.10" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.7.0" OutputItemType="Analyzer" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.10.0" />
+        <PackageReference Include="Refit.HttpClientFactory" Version="6.3.2" />
+        <PackageReference Include="Microsoft.Azure.NotificationHubs" Version="4.1.0" />
+        <PackageReference Include="NuGet.Protocol" Version="6.3.1" />
+        <PackageReference Include="Refit.Newtonsoft.Json" Version="6.3.2" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.13" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.1.0" />
+        <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="5.0.1" />
     </ItemGroup>
     <ItemGroup>
         <None Update="host.json">

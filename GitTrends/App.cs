@@ -1,101 +1,82 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using AsyncAwaitBestPractices;
-using Autofac;
-using Xamarin.Forms;
+using GitTrends.Shared;
 using Xamarin.Forms.PlatformConfiguration;
 using Xamarin.Forms.PlatformConfiguration.iOSSpecific;
 
 namespace GitTrends
 {
-    public class App : Xamarin.Forms.Application
-    {
-        readonly WeakEventManager<Theme> _themeChangedEventManager = new WeakEventManager<Theme>();
-        readonly AnalyticsService _analyticsService;
+	public class App : Xamarin.Forms.Application
+	{
+		readonly static WeakEventManager _resumedEventManager = new();
 
-        public App()
-        {
-            FFImageLoading.ImageService.Instance.Initialize(new FFImageLoading.Config.Configuration
-            {
-                HttpHeadersTimeout = 60
-            });
+		readonly IAnalyticsService _analyticsService;
+		readonly NotificationService _notificationService;
+		readonly AppInitializationService _appInitializationService;
 
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            _analyticsService = scope.Resolve<AnalyticsService>();
+		public App(LanguageService languageService,
+					SplashScreenPage splashScreenPage,
+					IAnalyticsService analyticsService,
+					NotificationService notificationService,
+					AppInitializationService appInitializationService)
+		{
+			_analyticsService = analyticsService;
+			_notificationService = notificationService;
+			_appInitializationService = appInitializationService;
 
-            MainPage = scope.Resolve<SplashScreenPage>();
+			analyticsService.Track("App Initialized", new Dictionary<string, string>
+			{
+				{ nameof(LanguageService.PreferredLanguage), languageService.PreferredLanguage ?? "default" },
+				{ nameof(CultureInfo.CurrentUICulture), CultureInfo.CurrentUICulture.TwoLetterISOLanguageName }
+			});
 
-            On<iOS>().SetHandleControlUpdatesOnMainThread(true);            
-        }
+			MainPage = splashScreenPage;
 
-        public event EventHandler<Theme> ThemeChanged
-        {
-            add => _themeChangedEventManager.AddEventHandler(value);
-            remove => _themeChangedEventManager.RemoveEventHandler(value);
-        }
+			On<iOS>().SetHandleControlUpdatesOnMainThread(true);
+		}
 
-        protected override void OnStart()
-        {   
-            base.OnStart();
+		public static event EventHandler Resumed
+		{
+			add => _resumedEventManager.AddEventHandler(value);
+			remove => _resumedEventManager.RemoveEventHandler(value);
+		}
 
-            _analyticsService.Track("App Started");
+		protected override async void OnStart()
+		{
+			base.OnStart();
 
-            SetTheme();
-        }
+			_analyticsService.Track("App Started");
 
-        protected override void OnResume()
-        {
-            base.OnResume();
+			await ClearBageNotifications();
 
-            _analyticsService.Track("App Resumed");
+			var appInitializationCancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+			await _appInitializationService.InitializeApp(appInitializationCancellationTokenSource.Token);
+		}
 
-            SetTheme();
-        }
+		protected override async void OnResume()
+		{
+			base.OnResume();
 
-        protected override void OnSleep()
-        {
-            base.OnSleep();
+			OnResumed();
 
-            _analyticsService.Track("App Backgrounded");
-        }
+			_analyticsService.Track("App Resumed");
 
-        void SetTheme()
-        {
-            var operatingSystemTheme = DependencyService.Get<IEnvironment>().GetOperatingSystemTheme();
+			await ClearBageNotifications();
+		}
 
-            BaseTheme preferedTheme = operatingSystemTheme switch
-            {
-                Theme.Light => new LightTheme(),
-                Theme.Dark => new DarkTheme(),
-                _ => throw new NotSupportedException()
-            };
+		protected override void OnSleep()
+		{
+			base.OnSleep();
 
-            if (Resources.GetType() != preferedTheme.GetType())
-            {
-                Resources = preferedTheme;
+			_analyticsService.Track("App Backgrounded");
+		}
 
-                EnableDebugRainbows(false);
+		ValueTask ClearBageNotifications() => _notificationService.SetAppBadgeCount(0);
 
-                OnThemeChanged(operatingSystemTheme);
-            }
-        }
-
-        [Conditional("DEBUG")]
-        void EnableDebugRainbows(bool shouldUseDebugRainbows)
-        {
-            Resources.Add(new Style(typeof(ContentPage))
-            {
-                ApplyToDerivedTypes = true,
-                Setters = {
-                    new Setter
-                    {
-                        Property = Xamarin.Forms.DebugRainbows.DebugRainbow.ShowColorsProperty,
-                        Value = shouldUseDebugRainbows
-                    }
-                }
-            });
-        }
-
-        void OnThemeChanged(Theme newTheme) => _themeChangedEventManager.HandleEvent(this, newTheme, nameof(ThemeChanged));
-    }
+		void OnResumed() => _resumedEventManager.RaiseEvent(this, EventArgs.Empty, nameof(Resumed));
+	}
 }

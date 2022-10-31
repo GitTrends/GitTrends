@@ -1,131 +1,340 @@
 ﻿using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using AsyncAwaitBestPractices.MVVM;
-using GitTrends.Mobile.Shared;
+using Autofac;
+using GitTrends.Mobile.Common;
 using GitTrends.Shared;
+using Xamarin.CommunityToolkit.Markup;
 using Xamarin.Essentials;
+using Xamarin.Essentials.Interfaces;
 using Xamarin.Forms;
+using static Xamarin.CommunityToolkit.Markup.GridRowsColumns;
 
 namespace GitTrends
 {
-    public class SettingsPage : BaseContentPage<SettingsViewModel>
-    {
-        readonly DeepLinkingService _deepLinkingService;
-        readonly TrendsChartSettingsService _trendsChartSettingsService;
+	public class SettingsPage : BaseContentPage<SettingsViewModel>
+	{
+		readonly Grid _contentGrid;
+		readonly OrganizationsCarouselOverlay _organizationsCarouselOverlay;
 
-        public SettingsPage(SettingsViewModel settingsViewModel,
-                            TrendsChartSettingsService trendsChartSettingsService,
-                            AnalyticsService analyticsService,
-                            DeepLinkingService deepLinkingService) : base(PageTitles.SettingsPage, settingsViewModel, analyticsService)
-        {
-            _trendsChartSettingsService = trendsChartSettingsService;
-            _deepLinkingService = deepLinkingService;
+		CancellationTokenSource _connectToGitHubCancellationTokenSource = new();
 
-            ViewModel.GitHubLoginUrlRetrieved += HandleGitHubLoginUrlRetrieved;
+		public SettingsPage(IMainThread mainThread,
+							IAnalyticsService analyticsService,
+							SettingsViewModel settingsViewModel,
+							MediaElementService mediaElementService) : base(settingsViewModel, analyticsService, mainThread)
+		{
+			const int separatorRowHeight = 1;
+			const int settingsRowHeight = 38;
 
-            Content = CreateLayout();
-        }
+			SettingsViewModel.OrganizationsCarouselViewVisiblilityChanged += HandleOrganizationsCarouselViewVisiblilityChanged;
 
-        protected override void OnDisappearing()
-        {
-            base.OnDisappearing();
+			var loginRowTapGesture = new TapGestureRecognizer();
+			loginRowTapGesture.Tapped += HandleLoginRowTapped;
 
-            ViewModel.IsAuthenticating = false;
-        }
+			var aboutRowTapGesture = new TapGestureRecognizer();
+			aboutRowTapGesture.Tapped += HandleAboutRowTapped;
 
-        protected override void HandleDisplayInfoChanged(object sender, DisplayInfoChangedEventArgs e)
-        {
-            base.HandleDisplayInfoChanged(sender, e);
+			Content = new Grid
+			{
+				Children =
+				{
+					new ScrollView
+					{
+						Content = new Grid
+						{
+							RowSpacing = 8,
+							ColumnSpacing = 16.5,
 
-            Content = CreateLayout();
-        }
+							RowDefinitions = Rows.Define(
+								(SettingsRow.GitHubUser, GitHubUserView.TotalHeight),
+								(SettingsRow.GitHubUserSeparator, separatorRowHeight),
+								(SettingsRow.About, settingsRowHeight),
+								(SettingsRow.AboutSeparator, separatorRowHeight),
+								(SettingsRow.Login, settingsRowHeight),
+								(SettingsRow.LoginSeparator, separatorRowHeight),
+								(SettingsRow.Organizations, settingsRowHeight),
+								(SettingsRow.OrganizationsSeparator, separatorRowHeight),
+								(SettingsRow.Notifications, settingsRowHeight),
+								(SettingsRow.NotificationsSeparator, separatorRowHeight),
+								(SettingsRow.Theme, settingsRowHeight),
+								(SettingsRow.ThemeSeparator, separatorRowHeight),
+								(SettingsRow.Language, settingsRowHeight),
+								(SettingsRow.LanguageSeparator, separatorRowHeight),
+								(SettingsRow.PreferredCharts, settingsRowHeight),
+								(SettingsRow.PreferredChartsSeparator, separatorRowHeight),
+								(SettingsRow.CopyrightPadding, 20),
+								(SettingsRow.Copyright, Star)),
 
-        RelativeLayout CreateLayout()
-        {
-            var gitHubSettingsView = new GitHubSettingsView();
-            var trendsSettingsView = new TrendsChartSettingsView(_trendsChartSettingsService);
+							ColumnDefinitions = Columns.Define(
+								(SettingsColumn.Icon, 24),
+								(SettingsColumn.Title, Star),
+								(SettingsColumn.Button, 100)),
 
-            var versionNumberLabel = new Label
-            {
-                Text = $"Version: {VersionTracking.CurrentVersion}",
-                HorizontalTextAlignment = TextAlignment.Start,
-                Opacity = 0.75,
-                Margin = new Thickness(2, 5, 0, 0),
-                FontSize = 14
-            };
-            versionNumberLabel.SetDynamicResource(Label.TextColorProperty, nameof(BaseTheme.TextColor));
+							Children =
+							{
+								new GitHubUserView()
+									.Row(SettingsRow.GitHubUser).ColumnSpan(All<SettingsColumn>()),
 
-            var createdByLabel = new Label
-            {
-                Margin = new Thickness(0, 5),
-                VerticalOptions = LayoutOptions.FillAndExpand,
-                HorizontalOptions = LayoutOptions.FillAndExpand,
-                HorizontalTextAlignment = TextAlignment.Center,
-                VerticalTextAlignment = TextAlignment.End,
-                Text = "Mobile App Created by Code Traveler LLC",
-                FontSize = 12,
-            };
-            createdByLabel.SetDynamicResource(Label.TextColorProperty, nameof(BaseTheme.TextColor));
-            createdByLabel.GestureRecognizers.Add(new TapGestureRecognizer { Command = new AsyncCommand(CreatedByLabelTapped) });
+								new Separator()
+									.Row(SettingsRow.GitHubUserSeparator).ColumnSpan(All<SettingsColumn>()),
 
-            var relativeLayout = new RelativeLayout
-            {
-                Margin = DeviceDisplay.MainDisplayInfo.Orientation is DisplayOrientation.Portrait
-                            ? new Thickness(20, 20, 20, 30)
-                            : new Thickness(20, 20, 20, 0)
-            };
+								new AboutRowTappableView(aboutRowTapGesture)
+									.Row(SettingsRow.About).ColumnSpan(All<SettingsColumn>()),
+								new AboutRowSvg("about.svg", getSVGIconColor)
+									.Row(SettingsRow.About).Column(SettingsColumn.Icon),
+								new AboutTitleLabel(SettingsPageAutomationIds.AboutTitleLabel)
+									.Row(SettingsRow.About).Column(SettingsColumn.Title)
+									.Bind(Label.TextProperty, nameof(SettingsViewModel.AboutLabelText)),
+								new AboutRowSvg("right_arrow.svg", getSVGIconColor).End()
+									.Row(SettingsRow.About).Column(SettingsColumn.Button),
 
-            relativeLayout.Children.Add(createdByLabel,
-                xConstraint: Constraint.RelativeToParent(parent => parent.Width / 2 - GetWidth(parent, createdByLabel) / 2),
-                yConstraint: Constraint.RelativeToParent(parent => parent.Height - GetHeight(parent, createdByLabel) - 10));
+								new Separator()
+									.Row(SettingsRow.AboutSeparator).ColumnSpan(All<SettingsColumn>()),
 
-            relativeLayout.Children.Add(gitHubSettingsView,
-                //Keep at left of the screen
-                xConstraint: Constraint.Constant(0),
-                //Keep at top of the screen
-                yConstraint: Constraint.Constant(0),
-                //Portrait: Full width; Landscape: Half of the screen
-                widthConstraint: DeviceDisplay.MainDisplayInfo.Orientation is DisplayOrientation.Portrait
-                                    ? Constraint.RelativeToParent(parent => parent.Width)
-                                    : Constraint.RelativeToParent(parent => parent.Width / 2),
-                //Portrait: Half height; Landscape: Full height
-                heightConstraint: DeviceDisplay.MainDisplayInfo.Orientation is DisplayOrientation.Portrait
-                                    ? Constraint.RelativeToParent(parent => parent.Height / 2)
-                                    : Constraint.RelativeToParent(parent => parent.Height));
+								new LoginRowTappableView(loginRowTapGesture)
+									.Row(SettingsRow.Login).ColumnSpan(All<SettingsColumn>()),
+								new LoginRowSvg("logout.svg", getSVGIconColor)
+									.Row(SettingsRow.Login).Column(SettingsColumn.Icon),
+								new LoginLabel()
+									.Row(SettingsRow.Login).Column(SettingsColumn.Title),
+								new LoginRowSvg("right_arrow.svg", getSVGIconColor).End()
+									.Row(SettingsRow.Login).Column(SettingsColumn.Button),
 
-            relativeLayout.Children.Add(trendsSettingsView,
-                //Portrait: Place under GitHubSettingsView; Landscape: Place to the right of GitHubSettingsView
-                xConstraint: DeviceDisplay.MainDisplayInfo.Orientation is DisplayOrientation.Portrait
-                                ? Constraint.Constant(0)
-                                : Constraint.RelativeToParent(parent => parent.Width / 2),
-                //Portrait: Place under GitHubSettingsView; Landscape: Place on the top
-                yConstraint: DeviceDisplay.MainDisplayInfo.Orientation is DisplayOrientation.Portrait
-                                ? Constraint.RelativeToView(gitHubSettingsView, (parent, view) => view.Y + view.Height + 10)
-                                : Constraint.Constant(0),
-                //Portrait: Full width; Landscape: Half of the screen
-                widthConstraint: DeviceDisplay.MainDisplayInfo.Orientation is DisplayOrientation.Portrait
-                                    ? Constraint.RelativeToParent(parent => parent.Width)
-                                    : Constraint.RelativeToParent(parent => parent.Width / 2));
+								new Separator()
+									.Row(SettingsRow.LoginSeparator).ColumnSpan(All<SettingsColumn>()),
 
-            relativeLayout.Children.Add(versionNumberLabel,
-                xConstraint: Constraint.RelativeToView(trendsSettingsView, (parent, view) => view.X),
-                yConstraint: Constraint.RelativeToView(trendsSettingsView, (parent, view) => view.Y + view.Height + 10));
+								new SvgImage("organization.svg", getSVGIconColor)
+									.Row(SettingsRow.Organizations).Column(SettingsColumn.Icon),
+								new SettingsTitleLabel(SettingsPageAutomationIds.IncludeOrganizationsSwitch)
+									.Row(SettingsRow.Organizations).Column(SettingsColumn.Title)
+									.Bind(Label.TextProperty, nameof(SettingsViewModel.ShouldIncludeOrganizationsLabelText)),
+								new IncludeOrganizationsSwitch()
+									.Row(SettingsRow.Organizations).Column(SettingsColumn.Button),
 
-            return relativeLayout;
-        }
+								new Separator()
+									.Row(SettingsRow.OrganizationsSeparator).ColumnSpan(All<SettingsColumn>()),
 
-        async void HandleGitHubLoginUrlRetrieved(object sender, string? loginUrl)
-        {
-            if (!string.IsNullOrWhiteSpace(loginUrl))
-                await OpenBrowser(loginUrl);
-            else
-                await DisplayAlert("Error", "Couldn't connect to GitHub Login. Check your internet connection and try again", "OK");
-        }
+								new SvgImage("bell.svg", getSVGIconColor)
+									.Row(SettingsRow.Notifications).Column(SettingsColumn.Icon),
+								new SettingsTitleLabel(SettingsPageAutomationIds.RegisterForNotificationsTitleLabel)
+									.Row(SettingsRow.Notifications).Column(SettingsColumn.Title)
+									.Bind(Label.TextProperty, nameof(SettingsViewModel.RegisterForNotificationsLabelText)),
+								new EnableNotificationsSwitch()
+									.Row(SettingsRow.Notifications).Column(SettingsColumn.Button),
 
-        Task CreatedByLabelTapped()
-        {
-            AnalyticsService.Track("CreatedBy Label Tapped");
-            return _deepLinkingService.OpenApp("twitter://user?id=3418408341", "https://twitter.com/intent/user?user_id=3418408341");
-        }
-    }
+								new Separator()
+									.Row(SettingsRow.NotificationsSeparator).ColumnSpan(All<SettingsColumn>()),
+
+								new SvgImage("theme.svg", getSVGIconColor)
+									.Row(SettingsRow.Theme).Column(SettingsColumn.Icon),
+								new SettingsTitleLabel(SettingsPageAutomationIds.ThemeTitleLabel)
+									.Row(SettingsRow.Theme).Column(SettingsColumn.Title)
+									.Bind(Label.TextProperty, nameof(SettingsViewModel.ThemeLabelText)),
+								new SettingsPicker(SettingsPageAutomationIds.ThemePicker, 70)
+									.Row(SettingsRow.Theme).Column(SettingsColumn.Button)
+									.Bind(Picker.ItemsSourceProperty, nameof(SettingsViewModel.ThemePickerItemsSource))
+									.Bind(Picker.SelectedIndexProperty, nameof(SettingsViewModel.ThemePickerSelectedIndex)),
+
+								new Separator()
+									.Row(SettingsRow.ThemeSeparator).ColumnSpan(All<SettingsColumn>()),
+
+								new SvgImage("language.svg", getSVGIconColor)
+									.Row(SettingsRow.Language).Column(SettingsColumn.Icon),
+								new SettingsTitleLabel(SettingsPageAutomationIds.LanguageTitleLabel)
+									.Row(SettingsRow.Language).Column(SettingsColumn.Title)
+									.Bind(Label.TextProperty, nameof(SettingsViewModel.LanguageLabelText)),
+								new SettingsPicker(SettingsPageAutomationIds.LanguagePicker, 100)
+									.Row(SettingsRow.Language).Column(SettingsColumn.Button)
+									.Bind(Picker.ItemsSourceProperty, nameof(SettingsViewModel.LanguagePickerItemsSource))
+									.Bind(Picker.SelectedIndexProperty, nameof(SettingsViewModel.LanguagePickerSelectedIndex)),
+
+								new Separator()
+									.Row(SettingsRow.LanguageSeparator).ColumnSpan(All<SettingsColumn>()),
+
+								new SvgImage("chart.svg", getSVGIconColor)
+									.Row(SettingsRow.PreferredCharts).Column(SettingsColumn.Icon),
+								new SettingsTitleLabel(SettingsPageAutomationIds.PreferredChartTitleLabel)
+									.Row(SettingsRow.PreferredCharts).Column(SettingsColumn.Title)
+									.Bind(Label.TextProperty, nameof(SettingsViewModel.PreferredChartsLabelText)),
+								new SettingsPicker(SettingsPageAutomationIds.PreferredChartsPicker, 100)
+									.Row(SettingsRow.PreferredCharts).Column(SettingsColumn.Button)
+									.Bind(Picker.ItemsSourceProperty, nameof(SettingsViewModel.PreferredChartsItemsSource))
+									.Bind(Picker.SelectedIndexProperty, nameof(SettingsViewModel.PreferredChartsSelectedIndex)),
+
+								new Separator()
+									.Row(SettingsRow.PreferredChartsSeparator).ColumnSpan(All<SettingsColumn>()),
+
+								new CopyrightLabel()
+									.Row(SettingsRow.Copyright).ColumnSpan(All<SettingsColumn>()),
+							}
+						}.Assign(out _contentGrid)
+					}.Paddings(left: 28, right: 28, bottom: 8),
+
+					new OrganizationsCarouselOverlay(mainThread, analyticsService, mediaElementService).Assign(out _organizationsCarouselOverlay),
+				}
+			};
+
+			this.SetBinding(TitleProperty, nameof(SettingsViewModel.TitleText));
+
+			static Color getSVGIconColor() => (Color)Application.Current.Resources[nameof(BaseTheme.IconColor)];
+		}
+
+		enum SettingsRow { GitHubUser, GitHubUserSeparator, About, AboutSeparator, Login, LoginSeparator, Organizations, OrganizationsSeparator, Notifications, NotificationsSeparator, Theme, ThemeSeparator, Language, LanguageSeparator, PreferredCharts, PreferredChartsSeparator, CopyrightPadding, Copyright }
+		enum SettingsColumn { Icon, Title, Button }
+
+		protected override void OnAppearing()
+		{
+			base.OnAppearing();
+
+			_connectToGitHubCancellationTokenSource = new();
+		}
+
+		protected override void OnDisappearing()
+		{
+			_connectToGitHubCancellationTokenSource.Cancel();
+
+			base.OnDisappearing();
+		}
+
+		async void HandleAboutRowTapped(object sender, EventArgs e)
+		{
+			AnalyticsService.Track("About Button Tapped");
+
+			var aboutPage = ContainerService.Container.Resolve<AboutPage>();
+			await Navigation.PushAsync(aboutPage);
+		}
+
+		async void HandleLoginRowTapped(object sender, EventArgs e)
+		{
+			AnalyticsService.Track("Login Button Tapped", nameof(SettingsViewModel.IsNotAuthenticating), BindingContext.IsNotAuthenticating.ToString());
+
+			if (BindingContext.IsNotAuthenticating)
+			{
+				var loginRowViews = _contentGrid.Children.OfType<ILoginRowView>().Cast<View>();
+
+				await Task.WhenAll(loginRowViews.Select(static x => x.FadeTo(0.3, 75)));
+
+				BindingContext.HandleConnectToGitHubButtonCommand.Execute((_connectToGitHubCancellationTokenSource.Token, null));
+
+				await Task.WhenAll(loginRowViews.Select(static x => x.FadeTo(1, 350, Easing.CubicOut)));
+			}
+		}
+
+		async void HandleOrganizationsCarouselViewVisiblilityChanged(object sender, bool isVisible) => await MainThread.InvokeOnMainThreadAsync(async () =>
+		{
+			if (isVisible)
+				await _organizationsCarouselOverlay.Reveal(true);
+			else
+				await _organizationsCarouselOverlay.Dismiss(true);
+		});
+
+		class AboutRowTappableView : View
+		{
+			public AboutRowTappableView(TapGestureRecognizer tapGestureRecognizer) => GestureRecognizers.Add(tapGestureRecognizer);
+		}
+
+		class LoginRowTappableView : View, ILoginRowView
+		{
+			public LoginRowTappableView(TapGestureRecognizer tapGestureRecognizer) => GestureRecognizers.Add(tapGestureRecognizer);
+		}
+
+		class LoginRowSvg : SvgImage, ILoginRowView
+		{
+			public LoginRowSvg(in string svgFileName, in Func<Color> getTextColor) : base(svgFileName, getTextColor)
+			{
+				//Allow LoginRowTappableView to handle taps
+				InputTransparent = true;
+			}
+		}
+
+		class LoginLabel : TitleLabel, ILoginRowView
+		{
+			public LoginLabel()
+			{
+				this.FillExpand();
+				HorizontalTextAlignment = TextAlignment.Start;
+
+				AutomationId = SettingsPageAutomationIds.LoginTitleLabel;
+
+				//Allow LoginRowTappableView to handle taps
+				InputTransparent = true;
+
+				this.SetBinding(TextProperty, nameof(SettingsViewModel.LoginLabelText));
+			}
+		}
+
+		class AboutTitleLabel : SettingsTitleLabel
+		{
+			public AboutTitleLabel(in string automationId) : base(automationId)
+			{
+				//Allow AboutRowTappableView to handle taps
+				InputTransparent = true;
+			}
+		}
+
+		class AboutRowSvg : SvgImage
+		{
+			public AboutRowSvg(in string svgFileName, in Func<Color> getTextColor) : base(svgFileName, getTextColor)
+			{
+				//Allow AboutRowTappableView to handle taps
+				InputTransparent = true;
+				AutomationId = SettingsPageAutomationIds.AboutButton;
+			}
+		}
+
+		class SettingsTitleLabel : TitleLabel
+		{
+			public SettingsTitleLabel(in string automationId) => AutomationId = automationId;
+		}
+
+		class Separator : BoxView
+		{
+			public Separator() => this.DynamicResource(ColorProperty, nameof(BaseTheme.SeparatorColor));
+		}
+
+		class EnableNotificationsSwitch : SettingsSwitch
+		{
+			public EnableNotificationsSwitch()
+			{
+				AutomationId = SettingsPageAutomationIds.RegisterForNotificationsSwitch;
+
+				this.SetBinding(IsToggledProperty, nameof(SettingsViewModel.IsRegisterForNotificationsSwitchToggled));
+				this.SetBinding(IsEnabledProperty, nameof(SettingsViewModel.IsRegisterForNotificationsSwitchEnabled));
+			}
+		}
+
+		class IncludeOrganizationsSwitch : SettingsSwitch
+		{
+			public IncludeOrganizationsSwitch()
+			{
+				AutomationId = SettingsPageAutomationIds.IncludeOrganizationsSwitch;
+
+				this.SetBinding(IsToggledProperty, nameof(SettingsViewModel.IsShouldIncludeOrganizationsSwitchToggled));
+				this.SetBinding(IsEnabledProperty, nameof(SettingsViewModel.IsShouldIncludeOrganizationsSwitchEnabled));
+			}
+		}
+
+		class SettingsPicker : Picker
+		{
+			public SettingsPicker(in string automationId, in int widthRequest)
+			{
+				FontSize = 12;
+				WidthRequest = widthRequest;
+				AutomationId = automationId;
+				FontFamily = FontFamilyConstants.RobotoMedium;
+
+				this.EndExpand();
+
+				this.DynamicResources((TextColorProperty, nameof(BaseTheme.SettingsLabelTextColor)),
+										(BackgroundColorProperty, nameof(BaseTheme.PageBackgroundColor)));
+			}
+		}
+
+		interface ILoginRowView
+		{
+
+		}
+	}
 }

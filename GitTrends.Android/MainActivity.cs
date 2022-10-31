@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
@@ -6,142 +7,100 @@ using Android.Content.PM;
 using Android.OS;
 using Android.Runtime;
 using Autofac;
-using Plugin.CurrentActivity;
-using Xamarin.Essentials;
+using GitTrends.Shared;
+using Newtonsoft.Json;
+using Shiny;
 using Xamarin.Forms;
 
 namespace GitTrends.Droid
 {
-    [Activity(Label = "GitTrends", Icon = "@mipmap/icon", RoundIcon = "@mipmap/icon_round", Theme = "@style/LaunchTheme", LaunchMode = LaunchMode.SingleTop, MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation)]
-    [IntentFilter(new string[] { Intent.ActionView }, Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable }, DataSchemes = new[] { "gittrends" })]
-    public class MainActivity : global::Xamarin.Forms.Platform.Android.FormsAppCompatActivity
-    {
-        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Permission[] grantResults)
-        {
-            Platform.OnRequestPermissionsResult(requestCode, permissions, grantResults);
+	[Activity(Label = "GitTrends", Exported = true, Icon = "@mipmap/icon", RoundIcon = "@mipmap/icon_round", Theme = "@style/LaunchTheme", LaunchMode = LaunchMode.SingleTop, MainLauncher = true, ScreenOrientation = ScreenOrientation.Portrait)]
+	[IntentFilter(new string[] { Intent.ActionView }, Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable }, DataSchemes = new[] { "gittrends" })]
+	public class MainActivity : global::Xamarin.Forms.Platform.Android.FormsAppCompatActivity
+	{
+		public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Permission[] grantResults)
+		{
+			base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
 
-            base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
+			this.ShinyOnRequestPermissionsResult(requestCode, permissions, grantResults);
+			Xamarin.Essentials.Platform.OnRequestPermissionsResult(requestCode, permissions, grantResults);
+		}
 
-#if DEBUG
-        #region UI Test Back Door Methods
-        [Preserve, Export(BackdoorMethodConstants.SetGitHubUser)]
-        public async void SetGitHubUser(string accessToken)
-        {
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            var backdoorService = scope.Resolve<UITestBackdoorService>();
+		protected override void OnCreate(Bundle savedInstanceState)
+		{
+			TabLayoutResource = Resource.Layout.Tabbar;
+			ToolbarResource = Resource.Layout.Toolbar;
 
-            await backdoorService.SetGitHubUser(accessToken.ToString()).ConfigureAwait(false);
-        }
+			base.SetTheme(Resource.Style.MainTheme);
+			base.OnCreate(savedInstanceState);
 
-        [Preserve, Export(BackdoorMethodConstants.TriggerRepositoriesPullToRefresh)]
-        public async void TriggerRepositoriesPullToRefresh()
-        {
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            var backdoorService = scope.Resolve<UITestBackdoorService>();
+			Forms.Init(this, savedInstanceState);
 
-            await backdoorService.TriggerRepositoryPullToRefresh().ConfigureAwait(false);
-        }
+			var app = ContainerService.Container.Resolve<App>();
+			LoadApplication(app);
 
-        [Preserve, Export(BackdoorMethodConstants.GetVisibleRepositoryList)]
-        public string GetVisibleRepositoryList()
-        {
-            using var scope = ContainerService.Container.BeginLifetimeScope();
-            var backdoorService = scope.Resolve<UITestBackdoorService>();
+			TryHandleOpenedFromUri(Intent?.Data);
+			TryHandleOpenedFromNotification(Intent);
+		}
 
-            return JsonConvert.SerializeObject(backdoorService.GetVisibleRepositoryList());
-        }
-        #endregion
-#endif
+		protected override async void OnNewIntent(Intent intent)
+		{
+			base.OnNewIntent(intent);
 
-        protected override void OnCreate(Bundle savedInstanceState)
-        {
-            TabLayoutResource = Resource.Layout.Tabbar;
-            ToolbarResource = Resource.Layout.Toolbar;
+			if (intent?.Data is Android.Net.Uri callbackUri)
+			{
+				await AuthorizeGitHubSession(callbackUri).ConfigureAwait(false);
+			}
 
-            base.SetTheme(Resource.Style.MainTheme);
-            base.OnCreate(savedInstanceState);
+			TryHandleOpenedFromNotification(intent);
+		}
 
-            CrossCurrentActivity.Current.Init(this, savedInstanceState);
+		static async Task AuthorizeGitHubSession(Android.Net.Uri callbackUri)
+		{
+			try
+			{
+				var gitHubAuthenticationService = ContainerService.Container.Resolve<GitHubAuthenticationService>();
 
-            Xamarin.Essentials.Platform.Init(this, savedInstanceState);
-            global::Xamarin.Forms.Forms.Init(this, savedInstanceState);
+				await gitHubAuthenticationService.AuthorizeSession(new Uri(callbackUri.ToString()), CancellationToken.None).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				ContainerService.Container.Resolve<IAnalyticsService>().Report(ex);
+			}
+		}
 
-            FFImageLoading.Forms.Platform.CachedImageRenderer.Init(true);
-            FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageViewHandler();
-            var ignore = typeof(FFImageLoading.Svg.Forms.SvgCachedImage);
+		async void TryHandleOpenedFromNotification(Intent? intent)
+		{
+			try
+			{
+				if (intent?.GetStringExtra("ShinyNotification") is string notificationString)
+				{
+					var notification = JsonConvert.DeserializeObject<Shiny.Notifications.Notification>(notificationString);
 
-            var app = new App();
+					var analyticsService = ContainerService.Container.Resolve<IAnalyticsService>();
+					var notificationService = ContainerService.Container.Resolve<NotificationService>();
 
-            if (Intent?.Data is Android.Net.Uri callbackUri)
-            {
-                //Wait for Application.MainPage to load before handling the callbackUri
-                app.PageAppearing += HandlePageAppearing;
-            }
+					if (notification?.Title is string notificationTitle
+						&& notification?.Message is string notificationMessage
+						&& notification?.BadgeCount is int badgeCount
+						&& badgeCount > 0)
+					{
+						await notificationService.HandleNotification(notificationTitle, notificationMessage, badgeCount).ConfigureAwait(false);
+					}
+				}
+			}
+			catch (ObjectDisposedException)
+			{
 
-            LoadApplication(app);
+			}
+		}
 
-            async void HandlePageAppearing(object sender, Page e)
-            {
-                if (e is SettingsPage)
-                {
-                    app.PageAppearing -= HandlePageAppearing;
-                    await AuthorizeGitHubSession(callbackUri).ConfigureAwait(false);
-                }
-                else
-                {
-                    await NavigateToSettingsPage().ConfigureAwait(false);
-                }
-            }
-        }
-
-        protected override async void OnNewIntent(Intent intent)
-        {
-            base.OnNewIntent(intent);
-
-            if (intent?.Data is Android.Net.Uri callbackUri)
-            {
-                await NavigateToSettingsPage().ConfigureAwait(false);
-                await AuthorizeGitHubSession(callbackUri).ConfigureAwait(false);
-            }
-        }
-
-        static Task NavigateToSettingsPage()
-        {
-            var navigationPage = (NavigationPage)Xamarin.Forms.Application.Current.MainPage;
-
-            if (navigationPage.CurrentPage.GetType() != typeof(SettingsPage))
-            {
-                using var containerScope = ContainerService.Container.BeginLifetimeScope();
-                var settingsPage = containerScope.Resolve<SettingsPage>();
-
-                return MainThread.InvokeOnMainThreadAsync(() => navigateToSettingsPage(navigationPage, settingsPage));
-            }
-            else
-            {
-                return Task.CompletedTask;
-            }
-
-            static async Task navigateToSettingsPage(NavigationPage mainNavigationPage, SettingsPage settingsPage)
-            {
-                await mainNavigationPage.PopToRootAsync();
-                await mainNavigationPage.PushAsync(settingsPage);
-            }
-        }
-
-        static async Task AuthorizeGitHubSession(Android.Net.Uri callbackUri)
-        {
-            using var containerScope = ContainerService.Container.BeginLifetimeScope();
-
-            try
-            {
-                var gitHubAuthenticationService = containerScope.Resolve<GitHubAuthenticationService>();
-                await gitHubAuthenticationService.AuthorizeSession(new Uri(callbackUri.ToString())).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex);
-            }
-        }
-    }
+		async void TryHandleOpenedFromUri(Android.Net.Uri? callbackUri)
+		{
+			if (callbackUri != null)
+			{
+				await AuthorizeGitHubSession(callbackUri).ConfigureAwait(false);
+			}
+		}
+	}
 }

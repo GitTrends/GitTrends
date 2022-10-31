@@ -2,179 +2,494 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using AsyncAwaitBestPractices.MVVM;
+using AsyncAwaitBestPractices;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GitHubApiStatus;
+using GitTrends.Mobile.Common;
 using GitTrends.Shared;
+using Refit;
+using Xamarin.Essentials.Interfaces;
 
 namespace GitTrends
 {
-    class TrendsViewModel : BaseViewModel
-    {
-        readonly GitHubApiV3Service _gitHubApiV3Service;
+	public partial class TrendsViewModel : BaseViewModel
+	{
+		public const int MinimumChartHeight = 20;
 
-        bool _isFetchingData = true;
-        List<DailyViewsModel> _dailyViewsList = new List<DailyViewsModel>();
-        List<DailyClonesModel> _dailyClonesList = new List<DailyClonesModel>();
+		readonly static WeakEventManager<Repository> _repostoryEventManager = new();
 
-        public TrendsViewModel(GitHubApiV3Service gitHubApiV3Service, AnalyticsService analyticsService) : base(analyticsService)
-        {
-            _gitHubApiV3Service = gitHubApiV3Service;
-            FetchDataCommand = new AsyncCommand<(string Owner, string Repository)>(repo => ExecuteFetchDataCommand(repo.Owner, repo.Repository));
-        }
+		readonly GitHubApiV3Service _gitHubApiV3Service;
+		readonly RepositoryDatabase _repositoryDatabase;
+		readonly GitHubApiStatusService _gitHubApiStatusService;
+		readonly BackgroundFetchService _backgroundFetchService;
+		readonly GitHubGraphQLApiService _gitHubGraphQLApiService;
 
-        public ICommand FetchDataCommand { get; }
-        public double DailyViewsClonesMinValue { get; } = 0;
+		[ObservableProperty, NotifyPropertyChangedFor(nameof(IsStarsChartVisible)), NotifyPropertyChangedFor(nameof(IsStarsEmptyDataViewVisible))]
+		bool _isFetchingStarsData = true;
 
-        public bool IsChartVisible => !IsFetchingData;
-        public DateTime MinDateValue => GetMinimumLocalDateTime();
-        public DateTime MaxDateValue => GetMaximumLocalDateTime();
+		[ObservableProperty, NotifyPropertyChangedFor(nameof(IsViewsClonesChartVisible)), NotifyPropertyChangedFor(nameof(IsViewsClonesEmptyDataViewVisible))]
+		bool _isFetchingViewsClonesData = true;
 
-        public double DailyViewsClonesMaxValue
-        {
-            get
-            {
-                var dailyViewMaxValue = DailyViewsList.Any() ? DailyViewsList.Max(x => x.TotalViews) : 0;
-                var dailyClonesMaxValue = DailyClonesList.Any() ? DailyClonesList.Max(x => x.TotalClones) : 0;
+		[ObservableProperty]
+		bool _isViewsSeriesVisible, _isUniqueViewsSeriesVisible, _isClonesSeriesVisible, _isUniqueClonesSeriesVisible;
 
-                return Math.Max(dailyViewMaxValue, dailyClonesMaxValue);
-            }
-        }
+		[ObservableProperty]
+		string _starsStatisticsText = string.Empty, _viewsStatisticsText = string.Empty, _clonesStatisticsText = string.Empty, _starsHeaderMessageText = string.Empty,
+			_uniqueViewsStatisticsText = string.Empty, _uniqueClonesStatisticsText = string.Empty, _starsEmptyDataViewTitleText = string.Empty, _starsEmptyDataViewDescriptionText = string.Empty,
+			_viewsClonesEmptyDataViewTitleText = string.Empty;
 
-        public bool IsFetchingData
-        {
-            get => _isFetchingData;
-            set => SetProperty(ref _isFetchingData, value, () => OnPropertyChanged(nameof(IsChartVisible)));
-        }
+		[ObservableProperty]
+		Xamarin.Forms.ImageSource? _starsEmptyDataViewImage, _viewsClonesEmptyDataViewImage;
 
-        public List<DailyViewsModel> DailyViewsList
-        {
-            get => _dailyViewsList;
-            set => SetProperty(ref _dailyViewsList, value, UpdateDailyViewsListPropertiesChanged);
-        }
+		[ObservableProperty, NotifyPropertyChangedFor(nameof(IsViewsClonesChartVisible)), NotifyPropertyChangedFor(nameof(IsViewsClonesEmptyDataViewVisible)),
+			NotifyPropertyChangedFor(nameof(DailyViewsClonesMaxValue)), NotifyPropertyChangedFor(nameof(DailyViewsClonesMaxValue)), NotifyPropertyChangedFor(nameof(MinViewsClonesDate)),
+			NotifyPropertyChangedFor(nameof(MaxViewsClonesDate)), NotifyPropertyChangedFor(nameof(ViewsClonesChartYAxisInterval))]
+		IReadOnlyList<DailyViewsModel> _dailyViewsList = Array.Empty<DailyViewsModel>();
 
-        public List<DailyClonesModel> DailyClonesList
-        {
-            get => _dailyClonesList;
-            set => SetProperty(ref _dailyClonesList, value, UpdateDailyClonesListPropertiesChanged);
-        }
+		[ObservableProperty, NotifyPropertyChangedFor(nameof(IsViewsClonesChartVisible)), NotifyPropertyChangedFor(nameof(IsViewsClonesEmptyDataViewVisible)),
+			NotifyPropertyChangedFor(nameof(DailyViewsClonesMaxValue)), NotifyPropertyChangedFor(nameof(DailyViewsClonesMinValue)), NotifyPropertyChangedFor(nameof(MinViewsClonesDate)),
+			NotifyPropertyChangedFor(nameof(MaxViewsClonesDate)), NotifyPropertyChangedFor(nameof(ViewsClonesChartYAxisInterval))]
+		IReadOnlyList<DailyClonesModel> _dailyClonesList = Array.Empty<DailyClonesModel>();
 
-        static DateTimeOffset GetMinimumDateTimeOffset(in IEnumerable<DailyViewsModel> dailyViewsList, in IEnumerable<DailyClonesModel> dailyClonesList)
-        {
-            var minViewsDateTimeOffset = dailyViewsList.Any() ? dailyViewsList.Min(x => x.Day) : DateTimeOffset.UtcNow.Subtract(TimeSpan.FromDays(13));
-            var minClonesDateTimeOffset = dailyClonesList.Any() ? dailyClonesList.Min(x => x.Day) : DateTimeOffset.UtcNow.Subtract(TimeSpan.FromDays(13));
+		[ObservableProperty, NotifyPropertyChangedFor(nameof(IsStarsChartVisible)), NotifyPropertyChangedFor(nameof(IsStarsEmptyDataViewVisible)),
+			NotifyPropertyChangedFor(nameof(MaxDailyStarsValue)), NotifyPropertyChangedFor(nameof(MinDailyStarsValue)), NotifyPropertyChangedFor(nameof(MaxDailyStarsDate)),
+			NotifyPropertyChangedFor(nameof(MinDailyStarsDate)), NotifyPropertyChangedFor(nameof(TotalStars)), NotifyPropertyChangedFor(nameof(StarsChartYAxisInterval))]
+		IReadOnlyList<DailyStarsModel> _dailyStarsList = Array.Empty<DailyStarsModel>();
 
-            return new DateTime(Math.Min(minViewsDateTimeOffset.Ticks, minClonesDateTimeOffset.Ticks));
-        }
+		public TrendsViewModel(IMainThread mainThread,
+								IAnalyticsService analyticsService,
+								RepositoryDatabase repositoryDatabse,
+								GitHubApiV3Service gitHubApiV3Service,
+								GitHubApiStatusService gitHubApiStatusService,
+								BackgroundFetchService backgroundFetchService,
+								GitHubGraphQLApiService gitHubGraphQLApiService,
+								TrendsChartSettingsService trendsChartSettingsService) : base(analyticsService, mainThread)
+		{
+			_gitHubApiV3Service = gitHubApiV3Service;
+			_repositoryDatabase = repositoryDatabse;
+			_gitHubApiStatusService = gitHubApiStatusService;
+			_backgroundFetchService = backgroundFetchService;
+			_gitHubGraphQLApiService = gitHubGraphQLApiService;
 
-        static DateTimeOffset GetMaximumDateTimeOffset(in IEnumerable<DailyViewsModel> dailyViewsList, in IEnumerable<DailyClonesModel> dailyClonesList)
-        {
-            var maxViewsDateTime = dailyViewsList.Any() ? dailyViewsList.Max(x => x.Day) : DateTimeOffset.UtcNow;
-            var maxClonesDateTime = dailyClonesList.Any() ? dailyClonesList.Max(x => x.Day) : DateTimeOffset.UtcNow;
+			IsViewsSeriesVisible = trendsChartSettingsService.ShouldShowViewsByDefault;
+			IsUniqueViewsSeriesVisible = trendsChartSettingsService.ShouldShowUniqueViewsByDefault;
+			IsClonesSeriesVisible = trendsChartSettingsService.ShouldShowClonesByDefault;
+			IsUniqueClonesSeriesVisible = trendsChartSettingsService.ShouldShowUniqueClonesByDefault;
 
-            return new DateTime(Math.Max(maxViewsDateTime.Ticks, maxClonesDateTime.Ticks));
-        }
+			ViewsCardTappedCommand = new RelayCommand(() => IsViewsSeriesVisible = !IsViewsSeriesVisible);
+			UniqueViewsCardTappedCommand = new RelayCommand(() => IsUniqueViewsSeriesVisible = !IsUniqueViewsSeriesVisible);
+			ClonesCardTappedCommand = new RelayCommand(() => IsClonesSeriesVisible = !IsClonesSeriesVisible);
+			UniqueClonesCardTappedCommand = new RelayCommand(() => IsUniqueClonesSeriesVisible = !IsUniqueClonesSeriesVisible);
 
-        static DateTime GetMinimumLocalDateTime(in IEnumerable<DailyViewsModel> dailyViewsList, in IEnumerable<DailyClonesModel> dailyClonesList)
-        {
-            var minViewsDateTimeOffset = dailyViewsList.Any() ? dailyViewsList.Min(x => x.LocalDay) : DateTimeOffset.UtcNow.Subtract(TimeSpan.FromDays(13));
-            var minClonesDateTimeOffset = dailyClonesList.Any() ? dailyClonesList.Min(x => x.LocalDay) : DateTimeOffset.UtcNow.Subtract(TimeSpan.FromDays(13));
+			StarsRefreshState = ViewsClonesRefreshState = RefreshState.Uninitialized;
+		}
 
-            return new DateTime(Math.Min(minViewsDateTimeOffset.Ticks, minClonesDateTimeOffset.Ticks));
-        }
+		public ICommand ViewsCardTappedCommand { get; }
+		public ICommand UniqueViewsCardTappedCommand { get; }
+		public ICommand ClonesCardTappedCommand { get; }
+		public ICommand UniqueClonesCardTappedCommand { get; }
 
-        static DateTime GetMaximumLocalDateTime(in IEnumerable<DailyViewsModel> dailyViewsList, in IEnumerable<DailyClonesModel> dailyClonesList)
-        {
-            var maxViewsDateTime = dailyViewsList.Any() ? dailyViewsList.Max(x => x.LocalDay) : DateTimeOffset.UtcNow;
-            var maxClonesDateTime = dailyClonesList.Any() ? dailyClonesList.Max(x => x.LocalDay) : DateTimeOffset.UtcNow;
+		public static event EventHandler<Repository> RepositorySavedToDatabase
+		{
+			add => _repostoryEventManager.AddEventHandler(value);
+			remove => _repostoryEventManager.RemoveEventHandler(value);
+		}
 
-            return new DateTime(Math.Max(maxViewsDateTime.Ticks, maxClonesDateTime.Ticks));
-        }
+		public double DailyViewsClonesMinValue { get; } = 0;
+		public double MinDailyStarsValue { get; } = 0;
 
-        async Task ExecuteFetchDataCommand(string owner, string repository)
-        {
-            IsFetchingData = true;
+		public double TotalStars => DailyStarsList.Any() ? DailyStarsList.Last().TotalStars : 0;
 
-            try
-            {
-                var getRepositoryViewStatisticsTask = _gitHubApiV3Service.GetRepositoryViewStatistics(owner, repository);
-                var getRepositoryCloneStatisticsTask = _gitHubApiV3Service.GetRepositoryCloneStatistics(owner, repository);
-                var minimumTimeTask = Task.Delay(2000);
+		public bool IsStarsEmptyDataViewVisible => !IsStarsChartVisible && !IsFetchingStarsData;
+		public bool IsStarsChartVisible => !IsFetchingStarsData && TotalStars > 1;
 
-                await Task.WhenAll(getRepositoryViewStatisticsTask, getRepositoryCloneStatisticsTask, minimumTimeTask).ConfigureAwait(false);
+		public bool IsViewsClonesEmptyDataViewVisible => !IsViewsClonesChartVisible && !IsFetchingViewsClonesData;
+		public bool IsViewsClonesChartVisible => !IsFetchingViewsClonesData && DailyViewsList.Sum(static x => x.TotalViews + x.TotalUniqueViews) + DailyClonesList.Sum(static x => x.TotalClones + x.TotalUniqueClones) > 0;
 
-                var repositoryViews = await getRepositoryViewStatisticsTask.ConfigureAwait(false);
-                var repositoryClones = await getRepositoryCloneStatisticsTask.ConfigureAwait(false);
+		public double ViewsClonesChartYAxisInterval => DailyViewsClonesMaxValue > 20 ? Math.Round(DailyViewsClonesMaxValue / 10) : 2;
+		public double StarsChartYAxisInterval => MaxDailyStarsValue > 20 ? Math.Round(MaxDailyStarsValue / 10) : 2;
 
-                addMissingDates(repositoryViews.DailyViewsList, repositoryClones.DailyClonesList);
+		public DateTime MinViewsClonesDate => DateTimeService.GetMinimumLocalDateTime(DailyViewsList, DailyClonesList);
+		public DateTime MaxViewsClonesDate => DateTimeService.GetMaximumLocalDateTime(DailyViewsList, DailyClonesList);
 
-                DailyViewsList = repositoryViews.DailyViewsList.OrderBy(x => x.Day).ToList();
-                DailyClonesList = repositoryClones.DailyClonesList.OrderBy(x => x.Day).ToList();
+		public DateTime MaxDailyStarsDate => DailyStarsList.Any() ? DailyStarsList.Last().LocalDay : DateTime.Today;
+		public DateTime MinDailyStarsDate => DailyStarsList.Any() ? DailyStarsList.First().LocalDay : DateTime.Today.Subtract(TimeSpan.FromDays(14));
 
-                PrintDays();
-            }
-            finally
-            {
-                IsFetchingData = false;
-            }
+		public double MaxDailyStarsValue => TotalStars > MinimumChartHeight ? TotalStars : MinimumChartHeight;
 
-            static void addMissingDates(in IList<DailyViewsModel> dailyViewsList, in IList<DailyClonesModel> dailyClonesList)
-            {
-                var day = GetMinimumDateTimeOffset(dailyViewsList, dailyClonesList);
-                var maximumDay = GetMaximumDateTimeOffset(dailyViewsList, dailyClonesList);
+		public double DailyViewsClonesMaxValue
+		{
+			get
+			{
+				var dailyViewMaxValue = DailyViewsList.Any() ? DailyViewsList.Max(static x => x.TotalViews) : 0;
+				var dailyClonesMaxValue = DailyClonesList.Any() ? DailyClonesList.Max(static x => x.TotalClones) : 0;
 
-                var viewsDays = dailyViewsList.Select(x => x.Day.Day).ToList();
-                var clonesDays = dailyClonesList.Select(x => x.Day.Day).ToList();
+				return Math.Max(Math.Max(dailyViewMaxValue, dailyClonesMaxValue), MinimumChartHeight);
+			}
+		}
 
-                while (day.Day != maximumDay.AddDays(1).Day)
-                {
-                    if (!viewsDays.Contains(day.Day))
-                        dailyViewsList.Add(new DailyViewsModel(removeHourMinuteSecond(day), 0, 0));
+		RefreshState ViewsClonesRefreshState
+		{
+			set
+			{
+				ViewsClonesEmptyDataViewImage = EmptyDataViewService.GetViewsClonesImage(value);
+				ViewsClonesEmptyDataViewTitleText = EmptyDataViewService.GetViewsClonesTitleText(value);
+			}
+		}
 
-                    if (!clonesDays.Contains(day.Day))
-                        dailyClonesList.Add(new DailyClonesModel(removeHourMinuteSecond(day), 0, 0));
+		RefreshState StarsRefreshState
+		{
+			set
+			{
+				StarsEmptyDataViewImage = EmptyDataViewService.GetStarsEmptyDataViewImage(value, TotalStars);
+				StarsEmptyDataViewTitleText = EmptyDataViewService.GetStarsEmptyDataViewTitleText(value, TotalStars);
+				StarsEmptyDataViewDescriptionText = EmptyDataViewService.GetStarsEmptyDataViewDescriptionText(value, TotalStars);
 
-                    day = day.AddDays(1);
-                }
-            }
+				StarsHeaderMessageText = EmptyDataViewService.GetStarsHeaderMessageText(value, TotalStars);
+			}
+		}
 
-            static DateTimeOffset removeHourMinuteSecond(in DateTimeOffset date) => new DateTimeOffset(date.Year, date.Month, date.Day, 0, 0, 0, TimeSpan.Zero);
-        }
+		static IEnumerable<DailyStarsModel> GetDailyStarsList(IReadOnlyList<DateTimeOffset> starredAtDates)
+		{
+			int totalStars = 0;
 
-        void UpdateDailyClonesListPropertiesChanged()
-        {
-            OnPropertyChanged(nameof(DailyViewsClonesMaxValue));
-            OnPropertyChanged(nameof(DailyViewsClonesMinValue));
-            OnPropertyChanged(nameof(MinDateValue));
-            OnPropertyChanged(nameof(MaxDateValue));
-        }
+			foreach (var starDate in starredAtDates)
+				yield return new DailyStarsModel(++totalStars, starDate);
 
-        void UpdateDailyViewsListPropertiesChanged()
-        {
-            OnPropertyChanged(nameof(DailyViewsClonesMaxValue));
-            OnPropertyChanged(nameof(DailyViewsClonesMaxValue));
-            OnPropertyChanged(nameof(MinDateValue));
-            OnPropertyChanged(nameof(MaxDateValue));
-        }
+			//Ensure chart includes todays date
+			if (starredAtDates.Any() && starredAtDates.Max().LocalDateTime.DayOfYear != DateTimeOffset.UtcNow.LocalDateTime.DayOfYear)
+				yield return new DailyStarsModel(totalStars, DateTimeOffset.UtcNow);
+		}
 
-        DateTimeOffset GetMinimumDateTimeOffset() => GetMinimumDateTimeOffset(DailyViewsList, DailyClonesList);
-        DateTimeOffset GetMaximumDateTimeOffset() => GetMaximumDateTimeOffset(DailyViewsList, DailyClonesList);
+		[RelayCommand]
+		async Task FetchData((Repository Repository, CancellationToken CancellationToken) parameter)
+		{
+			var (repository, cancellationToken) = parameter;
 
-        DateTime GetMinimumLocalDateTime() => GetMinimumLocalDateTime(DailyViewsList, DailyClonesList);
-        DateTime GetMaximumLocalDateTime() => GetMaximumLocalDateTime(DailyViewsList, DailyClonesList);
+			var minimumTimeTask = Task.Delay(TimeSpan.FromSeconds(1));
+			using var getGetStarsDataCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			using var getViewsClonesDataCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-        [Conditional("DEBUG")]
-        void PrintDays()
-        {
-            Debug.WriteLine("Clones");
-            foreach (var cloneDay in DailyClonesList.Select(x => x.Day))
-                Debug.WriteLine(cloneDay);
+			try
+			{
+				IReadOnlyList<DateTimeOffset> repositoryStars;
+				IReadOnlyList<DailyViewsModel> repositoryViews;
+				IReadOnlyList<DailyClonesModel> repositoryClones;
 
-            Debug.WriteLine("");
+				var getGetStarsDataTask = isStarsDataComplete(repository) ? Task.FromResult(repository.StarredAt ?? throw new InvalidOperationException()) : GetStarsData(repository, getGetStarsDataCTS.Token);
+				var getViewsClonesDataTask = isViewsClonesDataComplete(repository)
+												? Task.FromResult((repository.DailyViewsList ?? throw new InvalidOperationException(), repository.DailyClonesList ?? throw new InvalidOperationException()))
+												: GetViewsClonesData(repository, getViewsClonesDataCTS.Token);
 
-            Debug.WriteLine("Views");
-            foreach (var viewDay in DailyViewsList.Select(x => x.Day))
-                Debug.WriteLine(viewDay);
-        }
-    }
+				// Update Views Clones Data first because `GetViewsClonesData` is quicker than `GetStarsData`
+				if (isViewsClonesDataComplete(repository))
+				{
+					repositoryViews = repository.DailyViewsList ?? throw new InvalidOperationException($"{nameof(Repository.DailyViewsList)} cannot be null when {nameof(Repository.ContainsViewsClonesStarsData)} is true");
+					repositoryClones = repository.DailyClonesList ?? throw new InvalidOperationException($"{nameof(Repository.DailyClonesList)} cannot be null when {nameof(Repository.ContainsViewsClonesStarsData)} is true");
+
+					updateViewsClonesData(repositoryViews, repositoryClones);
+				}
+				else
+				{
+					(repositoryViews, repositoryClones) = await getViewsClonesDataTask.ConfigureAwait(false);
+					updateViewsClonesData(repositoryViews, repositoryClones);
+				}
+
+				//Set ViewsClonesRefreshState last, because EmptyDataViews are dependent on the Chart ItemSources, e.g. DailyViewsClonesList
+				ViewsClonesRefreshState = RefreshState.Succeeded;
+				IsFetchingViewsClonesData = false;
+
+				if (isStarsDataComplete(repository))
+				{
+					repositoryStars = repository.StarredAt ?? throw new InvalidOperationException($"{nameof(Repository.StarredAt)} cannot be null when {nameof(Repository.ContainsViewsClonesStarsData)} is true");
+					updateStarsData(repositoryStars);
+				}
+				else
+				{
+					var repositoryFromDatabase = await _repositoryDatabase.GetRepository(repository.Url).ConfigureAwait(false);
+
+					if (repositoryFromDatabase is null || repositoryFromDatabase.StarredAt?.Count is 0)
+					{
+						repositoryStars = await getGetStarsDataTask.ConfigureAwait(false);
+						updateStarsData(repositoryStars);
+					}
+					else
+					{
+						var estimatedRepositoryStars = DateTimeService.GetEstimatedStarredAtList(repositoryFromDatabase, repository.StarCount);
+						updateStarsData(estimatedRepositoryStars);
+
+						// Display the estimated Data
+						StarsRefreshState = RefreshState.Succeeded;
+						IsFetchingStarsData = false;
+
+						// Continue to fetch the actual StarredAt Data in the background
+						// This allows us to save the downlaoded data to the database at the end of the `try` block
+						repositoryStars = await getGetStarsDataTask.ConfigureAwait(false);
+						updateStarsData(repositoryStars);
+					}
+				}
+
+				//Set StarsRefreshState last, because EmptyDataViews are dependent on the Chart ItemSources, e.g. DailyStarsList
+				StarsRefreshState = RefreshState.Succeeded;
+				IsFetchingStarsData = false;
+
+				var updatedRepository = repository with
+				{
+					DataDownloadedAt = DateTimeOffset.UtcNow,
+					StarredAt = repositoryStars,
+					DailyViewsList = repositoryViews,
+					DailyClonesList = repositoryClones
+				};
+
+				await _repositoryDatabase.SaveRepository(updatedRepository).ConfigureAwait(false);
+				OnRepositorySavedToDatabase(updatedRepository);
+
+				static bool isViewsClonesDataComplete(in Repository repository) => repository.ContainsViewsClonesData
+																					&& repository.DataDownloadedAt > DateTimeOffset.Now.Subtract(CachedDataConstants.ViewsClonesCacheLifeSpan);
+
+				static bool isStarsDataComplete(in Repository repository) => repository.ContainsStarsData
+																				&& repository.DataDownloadedAt > DateTimeOffset.Now.Subtract(CachedDataConstants.StarsDataCacheLifeSpan);
+			}
+			catch (Exception e) when (e is ApiException { StatusCode: HttpStatusCode.Unauthorized })
+			{
+				var (repositoryStars, repositoryViews, repositoryClones) = await GetNewestRepositoryData(repository).ConfigureAwait(false);
+				updateStarsData(repositoryStars);
+				updateViewsClonesData(repositoryViews, repositoryClones);
+
+				StarsRefreshState = ViewsClonesRefreshState = RefreshState.LoginExpired;
+			}
+			catch (Exception e) when (_gitHubApiStatusService.HasReachedMaximumApiCallLimit(e))
+			{
+				var (repositoryStars, repositoryViews, repositoryClones) = await GetNewestRepositoryData(repository).ConfigureAwait(false);
+				updateStarsData(repositoryStars);
+				updateViewsClonesData(repositoryViews, repositoryClones);
+
+				StarsRefreshState = ViewsClonesRefreshState = RefreshState.MaximumApiLimit;
+			}
+			catch (Exception e) when (_gitHubApiStatusService.IsAbuseRateLimit(e, out var retryTimeSpan))
+			{
+				IReadOnlyList<DateTimeOffset> repositoryStars;
+				IReadOnlyList<DailyViewsModel> repositoryViews;
+				IReadOnlyList<DailyClonesModel> repositoryClones;
+
+				_backgroundFetchService.TryScheduleRetryRepositoriesViewsClonesStars(repository, retryTimeSpan.Value);
+
+				var repositoryFromDatabase = await _repositoryDatabase.GetRepository(repository.Url).ConfigureAwait(false);
+
+				if (repositoryFromDatabase is null)
+				{
+					repositoryStars = Array.Empty<DateTimeOffset>();
+					repositoryViews = Array.Empty<DailyViewsModel>();
+					repositoryClones = Array.Empty<DailyClonesModel>();
+
+					StarsRefreshState = ViewsClonesRefreshState = RefreshState.Error;
+				}
+				else if (repositoryFromDatabase.DataDownloadedAt > repository.DataDownloadedAt) //If data from database is more recent, display data from database
+				{
+					var estimatedRepositoryStars = DateTimeService.GetEstimatedStarredAtList(repositoryFromDatabase, repository.StarCount);
+
+					repositoryStars = estimatedRepositoryStars;
+					repositoryViews = repositoryFromDatabase.DailyViewsList ?? Array.Empty<DailyViewsModel>();
+					repositoryClones = repositoryFromDatabase.DailyClonesList ?? Array.Empty<DailyClonesModel>();
+
+					StarsRefreshState = ViewsClonesRefreshState = RefreshState.Succeeded;
+				}
+				else //If data passed in as parameter is more recent, display data passed in as parameter
+				{
+					repositoryStars = repository.StarredAt ?? Array.Empty<DateTimeOffset>();
+					repositoryViews = repository.DailyViewsList ?? Array.Empty<DailyViewsModel>();
+					repositoryClones = repository.DailyClonesList ?? Array.Empty<DailyClonesModel>();
+
+					StarsRefreshState = ViewsClonesRefreshState = RefreshState.Succeeded;
+				}
+
+				updateStarsData(repositoryStars);
+				updateViewsClonesData(repositoryViews, repositoryClones);
+			}
+			catch (Exception e)
+			{
+				AnalyticsService.Report(e);
+
+				var (repositoryStars, repositoryViews, repositoryClones) = await GetNewestRepositoryData(repository).ConfigureAwait(false);
+				updateStarsData(repositoryStars);
+				updateViewsClonesData(repositoryViews, repositoryClones);
+
+				StarsRefreshState = ViewsClonesRefreshState = RefreshState.Error;
+			}
+			finally
+			{
+				if (!getGetStarsDataCTS.IsCancellationRequested)
+					getGetStarsDataCTS.Cancel();
+
+				if (!getViewsClonesDataCTS.IsCancellationRequested)
+					getViewsClonesDataCTS.Cancel();
+
+				//Display the Activity Indicator for a minimum time to ensure consistant UX
+				await minimumTimeTask.ConfigureAwait(false);
+				IsFetchingStarsData = IsFetchingViewsClonesData = false;
+			}
+
+			PrintDays();
+
+			void updateViewsClonesData(in IEnumerable<DailyViewsModel> repositoryViews, in IEnumerable<DailyClonesModel> repositoryClones)
+			{
+				DailyViewsList = repositoryViews.OrderBy(static x => x.Day).ToList();
+				DailyClonesList = repositoryClones.OrderBy(static x => x.Day).ToList();
+
+				ViewsStatisticsText = repositoryViews.Sum(static x => x.TotalViews).ToAbbreviatedText();
+				UniqueViewsStatisticsText = repositoryViews.Sum(static x => x.TotalUniqueViews).ToAbbreviatedText();
+
+				ClonesStatisticsText = repositoryClones.Sum(static x => x.TotalClones).ToAbbreviatedText();
+				UniqueClonesStatisticsText = repositoryClones.Sum(static x => x.TotalUniqueClones).ToAbbreviatedText();
+			}
+
+			void updateStarsData(in IReadOnlyList<DateTimeOffset> repositoryStars)
+			{
+				DailyStarsList = GetDailyStarsList(repositoryStars).OrderBy(static x => x.Day).ToList();
+				StarsStatisticsText = repositoryStars.Count.ToAbbreviatedText();
+			}
+		}
+
+		async Task<(IReadOnlyList<DateTimeOffset> RepositoryStars, IReadOnlyList<DailyViewsModel> RepositoryViews, IReadOnlyList<DailyClonesModel> RepositoryClones)>
+			GetNewestRepositoryData(Repository repository)
+		{
+			IReadOnlyList<DateTimeOffset> repositoryStars;
+			IReadOnlyList<DailyViewsModel> repositoryViews;
+			IReadOnlyList<DailyClonesModel> repositoryClones;
+
+			var repositoryFromDatabase = await _repositoryDatabase.GetRepository(repository.Url).ConfigureAwait(false);
+
+			if (repositoryFromDatabase is null)
+			{
+				repositoryStars = Array.Empty<DateTimeOffset>();
+				repositoryViews = Array.Empty<DailyViewsModel>();
+				repositoryClones = Array.Empty<DailyClonesModel>();
+			}
+			else if (repositoryFromDatabase.DataDownloadedAt > repository.DataDownloadedAt) //If data from database is more recent, display data from database
+			{
+				repositoryStars = repositoryFromDatabase.StarredAt ?? Array.Empty<DateTimeOffset>();
+				repositoryViews = repositoryFromDatabase.DailyViewsList ?? Array.Empty<DailyViewsModel>();
+				repositoryClones = repositoryFromDatabase.DailyClonesList ?? Array.Empty<DailyClonesModel>();
+			}
+			else //If data passed in as parameter is more recent, display data passed in as parameter
+			{
+				repositoryStars = repository.StarredAt ?? Array.Empty<DateTimeOffset>();
+				repositoryViews = repository.DailyViewsList ?? Array.Empty<DailyViewsModel>();
+				repositoryClones = repository.DailyClonesList ?? Array.Empty<DailyClonesModel>();
+			}
+
+			return (repositoryStars, repositoryViews, repositoryClones);
+		}
+
+		async Task<IReadOnlyList<DateTimeOffset>> GetStarsData(Repository repository, CancellationToken cancellationToken)
+		{
+			if (isFetchingStarsInBackground(_backgroundFetchService, repository))
+			{
+				return await getRepositoryStarsFromBackgroundService(repository, cancellationToken).ConfigureAwait(false);
+			}
+			else
+			{
+				var getStarGazers = await _gitHubGraphQLApiService.GetStarGazers(repository.Name, repository.OwnerLogin, cancellationToken).ConfigureAwait(false);
+				return getStarGazers.StarredAt.Select(static x => x.StarredAt).ToList();
+			}
+
+			static bool isFetchingStarsInBackground(BackgroundFetchService backgroundFetchService, Repository repository) =>
+				backgroundFetchService.QueuedJobs.Any(x => x == backgroundFetchService.GetRetryRepositoriesStarsIdentifier(repository));
+
+			async Task<IReadOnlyList<DateTimeOffset>> getRepositoryStarsFromBackgroundService(Repository repository, CancellationToken cancellationToken)
+			{
+				var backgroundStarsTCS = new TaskCompletionSource<IReadOnlyList<DateTimeOffset>>();
+
+				BackgroundFetchService.ScheduleRetryRepositoriesStarsCompleted += HandleScheduleRetryRepositoriesStarsCompleted;
+
+				using var cancellationTokenRegistration = cancellationToken.Register(() =>
+				{
+					BackgroundFetchService.ScheduleRetryRepositoriesStarsCompleted -= HandleScheduleRetryRepositoriesStarsCompleted;
+					backgroundStarsTCS.SetCanceled();
+				}); // Work-around to use a CancellationToken with a TaskCompletionSource: https://stackoverflow.com/a/39897392/5953643
+
+				return await backgroundStarsTCS.Task.ConfigureAwait(false);
+
+				void HandleScheduleRetryRepositoriesStarsCompleted(object sender, Repository e)
+				{
+					if (e.Url == repository.Url)
+					{
+						BackgroundFetchService.ScheduleRetryRepositoriesStarsCompleted -= HandleScheduleRetryRepositoriesStarsCompleted;
+						backgroundStarsTCS.SetResult(e.StarredAt ?? throw new InvalidOperationException($"{nameof(e.StarredAt)} cannot be null"));
+					}
+				}
+			}
+		}
+
+		async Task<(IReadOnlyList<DailyViewsModel> RepositoryViews, IReadOnlyList<DailyClonesModel> RepositoryClones)> GetViewsClonesData(Repository repository, CancellationToken cancellationToken)
+		{
+			if (isFetchingViewsClonesStarsInBackground(_backgroundFetchService, repository))
+			{
+				var backgroundServiceResults = await getRepositoryViewsClonesStarsFromBackgroundService(repository, cancellationToken).ConfigureAwait(false);
+				return (backgroundServiceResults.RepositoryViews, backgroundServiceResults.RepositoryClones);
+			}
+			else
+			{
+				var getRepositoryViewStatisticsTask = _gitHubApiV3Service.GetRepositoryViewStatistics(repository.OwnerLogin, repository.Name, cancellationToken);
+				var getRepositoryCloneStatisticsTask = _gitHubApiV3Service.GetRepositoryCloneStatistics(repository.OwnerLogin, repository.Name, cancellationToken);
+
+				await Task.WhenAll(getRepositoryViewStatisticsTask, getRepositoryCloneStatisticsTask).ConfigureAwait(false);
+
+				var repositoryViewsResponse = await getRepositoryViewStatisticsTask.ConfigureAwait(false);
+				var repositoryClonesResponse = await getRepositoryCloneStatisticsTask.ConfigureAwait(false);
+
+				return (repositoryViewsResponse.DailyViewsList, repositoryClonesResponse.DailyClonesList);
+			}
+
+			static bool isFetchingViewsClonesStarsInBackground(BackgroundFetchService backgroundFetchService, Repository repository) =>
+						backgroundFetchService.QueuedJobs.Any(x => x == backgroundFetchService.GetRetryRepositoriesViewsClonesStarsIdentifier(repository));
+
+			async Task<(IReadOnlyList<DateTimeOffset> RepositoryStars, IReadOnlyList<DailyViewsModel> RepositoryViews, IReadOnlyList<DailyClonesModel> RepositoryClones)> getRepositoryViewsClonesStarsFromBackgroundService(Repository repository, CancellationToken cancellationToken)
+			{
+				var backgroundStarsTCS = new TaskCompletionSource<(IReadOnlyList<DateTimeOffset> RepositoryStars, IReadOnlyList<DailyViewsModel> RepositoryViews, IReadOnlyList<DailyClonesModel> RepositoryClones)>();
+
+				BackgroundFetchService.ScheduleRetryRepositoriesViewsClonesStarsCompleted += HandleScheduleRetryRepositoriesViewsClonesStarsCompleted;
+
+				using var cancellationTokenRegistration = cancellationToken.Register(() =>
+				{
+					BackgroundFetchService.ScheduleRetryRepositoriesViewsClonesStarsCompleted -= HandleScheduleRetryRepositoriesViewsClonesStarsCompleted;
+					backgroundStarsTCS.SetCanceled();
+				}); // Work-around to use a CancellationToken with a TaskCompletionSource: https://stackoverflow.com/a/39897392/5953643
+
+				return await backgroundStarsTCS.Task.ConfigureAwait(false);
+
+				void HandleScheduleRetryRepositoriesViewsClonesStarsCompleted(object sender, Repository e)
+				{
+					if (e.Url == repository.Url)
+					{
+						BackgroundFetchService.ScheduleRetryRepositoriesViewsClonesStarsCompleted -= HandleScheduleRetryRepositoriesViewsClonesStarsCompleted;
+						backgroundStarsTCS.SetResult((e.StarredAt ?? throw new InvalidOperationException($"{nameof(e.StarredAt)} cannot be null"),
+														e.DailyViewsList ?? throw new InvalidOperationException($"{nameof(e.DailyViewsList)} cannot be null"),
+														e.DailyClonesList ?? throw new InvalidOperationException($"{nameof(e.DailyClonesList)} cannot be null")));
+					}
+				}
+			}
+		}
+
+		void OnRepositorySavedToDatabase(in Repository repository) => _repostoryEventManager.RaiseEvent(this, repository, nameof(RepositorySavedToDatabase));
+
+		[Conditional("DEBUG")]
+		void PrintDays()
+		{
+			Debug.WriteLine("Clones");
+			foreach (var cloneDay in DailyClonesList.Select(static x => x.Day))
+				Debug.WriteLine(cloneDay);
+
+			Debug.WriteLine("");
+
+			Debug.WriteLine("Views");
+			foreach (var viewDay in DailyViewsList.Select(static x => x.Day))
+				Debug.WriteLine(viewDay);
+		}
+	}
 }

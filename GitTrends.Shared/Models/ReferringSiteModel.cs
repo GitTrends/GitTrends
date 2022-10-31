@@ -1,41 +1,36 @@
 ﻿using System;
-using Newtonsoft.Json;
 
 namespace GitTrends.Shared
 {
-    public class ReferringSiteModel : BaseRepositoryModel
-    {
-        public const int FavIconSize = 32;
+	public record ReferringSiteModel : BaseTotalCountModel, IReferringSiteModel
+	{
+		public ReferringSiteModel(in long count, in long uniques, in string referrer, in DateTimeOffset? downloadedAt = null) : base(count, uniques)
+		{
+			DownloadedAt = downloadedAt ?? DateTimeOffset.UtcNow;
 
-        public ReferringSiteModel(long count, long uniques, string referrer) : base(count, uniques)
-        {
-            Referrer = referrer;
-            Uri.TryCreate("https://" + referrer, UriKind.Absolute, out var referringUri);
+			Referrer = referrer;
+			Uri.TryCreate("https://" + referrer, UriKind.Absolute, out Uri? referringUri);
 
-            if (referringUri != null && !referringUri.ToString().Contains("."))
-            {
-                ReferrerUri = new Uri(referringUri.ToString().TrimEnd('/') + ".com/");
-                IsReferrerUriValid = true;
-            }
-            else if (referringUri != null)
-            {
-                ReferrerUri = referringUri;
-                IsReferrerUriValid = true;
-            }
-            else
-            {
-                ReferrerUri = null;
-                IsReferrerUriValid = false;
-            }
-        }
+			if (referringUri is null)
+			{
+				ReferrerUri = null;
+				IsReferrerUriValid = false;
+			}
+			else if (!referringUri.ToString().Contains("."))
+			{
+				ReferrerUri = new Uri(referringUri.ToString().TrimEnd('/') + ".com/");
+				IsReferrerUriValid = true;
+			}
+			else
+			{
+				ReferrerUri = referringUri;
+				IsReferrerUriValid = true;
+			}
+		}
 
-        [JsonProperty("referrer")]
-        public string Referrer { get; }
-
-        [JsonProperty("isReferrerUriValid")]
-        public bool IsReferrerUriValid { get; }
-
-        [JsonProperty("referrerUri")]
-        public Uri? ReferrerUri { get; }
-    }
+		public DateTimeOffset DownloadedAt { get; }
+		public string Referrer { get; }
+		public bool IsReferrerUriValid { get; }
+		public Uri? ReferrerUri { get; }
+	}
 }
