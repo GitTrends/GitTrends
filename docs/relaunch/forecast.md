@@ -6,7 +6,7 @@ As of 2026-11-15. Figures are in USD, before income tax, and round to whole doll
 
 ## 1. Bottom line
 
-- **The cash risk is small and capped.** Recurring costs are about $137–161 a year at 500–2,000 MAU. Of that, 72–85% is the Apple $99/yr fee plus the domain. Azure production is $15–42 a year.
+- **The cash risk is small and capped.** Recurring costs are about $137–161 a year at 500–2,000 MAU. Of that, 74–87% is the Apple $99/yr fee plus the domain. Azure production is $18–42 a year.
   - Worst modelled 3-year cash loss: about $156, or about $956 if the optional $800 Claude Ultra build subscription is counted.
   - A free-only relaunch would cost almost the same cash, because the Apple fee is paid either way.
 - **Revenue is also small unless the audience grows well past 2020.** 3-year net revenue on the recommended ladder:
@@ -25,6 +25,7 @@ As of 2026-11-15. Figures are in USD, before income tax, and round to whole doll
   - Paying the owner $50/h for about 160 hands-on hours (the reconciled estimate with Claude doing the coding; see [estimates.md](estimates.md)) is $8,000. Only the bull path earns that back within 3 years.
 - **Owner's $9.99/$99.99 single tier vs the ladder.** The two earn about the same: the single tier wins only if it converts at 55% or more of the ladder's rate (bear 0.49, bull 0.57).
   - At the assumed 0.5, the ladder earns 10% more over 3 years and has 2.6× as many paying users.
+  - That 10% comes from Pro sales from year 2. Comparing Premium alone with the single tier, 3-year net revenue is within about 1% ($1,590 vs $1,570 at base), and parity is about 0.51 (bear 0.49, bull 0.51).
   - The single tier earns more in year 1 ($284 vs $227).
 - **What would actually lose money is fixed-fee creep, not Azure.** Private-repo CI, Sentry Team from day 1, an EU representative and paid staging together turn base into −$1,975 over 3 years.
 - **Collecting history for everyone matters most.** Collecting only for subscribers cuts base 3-year profit from $1,289 to $701.
@@ -142,6 +143,19 @@ These correct the judge's "about 40%", which compared annual prices only.
 | 1.00 | 0 | $3,141 | Single tier +81% |
 
 The matching elasticity uses factor = (price ratio)^−elasticity, with a blended price ratio of about 2.25×.
+
+**Without Pro.** With Pro switched off, the ladder's 3-year net revenue at base is $1,590 against $1,570 for the single tier, and 3-year profit is +$1,144 against +$1,124. Parity drops to about 0.51 in every scenario.
+
+At base user numbers, the single tier's revenue relative to Premium alone depends on its conversion factor:
+
+| Single-tier conversion factor | Premium alone vs single tier |
+|---|---|
+| 0.35 | Premium alone +45% |
+| 0.45 | Premium alone +13% |
+| 0.50 | Premium alone +1% |
+| 0.70 | Single tier +28% |
+
+Pro's build cost isn't modelled: 50–75 Claude hours and 20–30 owner hours.
 
 **Recommendation: keep the ladder.**
 - Technical buyers have free self-hosted alternatives and a $90/yr web competitor, so the market is probably elastic.

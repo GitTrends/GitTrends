@@ -21,7 +21,7 @@ The plan uses the reconciled numbers below. The two original reports follow as a
 | 3 Release 3.0 (client integration, compliance, beta, store) | 75 | about 32 (spread across its Phases 1 and 4) | **about 50** | 38 | about 28 | **about 33** |
 | 4 Release 3.1 Premium | 107 | about 71 (62 build + about 9 store) | **about 90** | 46 | about 47 | **about 46** |
 | 5 Post-launch operations | 40 (12 weeks) | 27 (8–12 weeks) | **about 33** | 21 | 25 | **about 23** |
-| **Total** | **405** (327–498) | **235** (148–324) | **about 310** (235–415) | **173** (137–214) | **150** (100–200) | **about 160** (130–210) |
+| **Total** | **405** (327–498) | **235** (148–324) | **about 315** (235–415) | **173** (137–214) | **150** (100–200) | **about 160** (130–210) |
 
 **Why the estimators differ.** Bottom-up sizes the backend and Premium larger: two-store verification, entitlement state, webhooks, backups and integration tests, item by item. Top-down compresses greenfield backend work 3–4× against a senior engineer. Reconciled figures sit near the midpoint, with the range spanning both centrals.
 
@@ -36,7 +36,7 @@ Weeks count from Monday 2026-11-16. The holidays probably add a week.
 | Phase 0 done (accounts, Apps, spikes) | week 1–2 | week 2–3 |
 | Prod backend live, history banking starts | week 6–7 | week 13–14 |
 | **3.0 free relaunch in stores** | **around week 10** (8–12): late January 2027 | **around week 20** (12–28): April 2027 |
-| **3.1 Premium live** | **around week 15** (13–19): early to mid March 2027 | **around week 32** (21–40): late June to July 2027 |
+| **3.1 Premium live** | **around week 15** (13–19): late February to early March 2027 | **around week 32** (21–40): late June to July 2027 |
 | Post-launch window ends | around week 27 | around week 45 |
 
 **What sets the pace:**
@@ -54,7 +54,7 @@ Weeks count from Monday 2026-11-16. The holidays probably add a week.
 **Project total:** about **1.3B tokens** (0.8–2.5B).
 
 **API-equivalent cost:**
-- At the measured mix (about $0.60 per million): about $0.8k.
+- At the measured mix (about $0.50–0.60 per million): about $0.8k.
 - At the estimators' more conservative mix ($0.85–1.50 per million): $1.1k–1.9k.
 
 **Measured anchor (this planning session, 2026-11-15):**
@@ -74,13 +74,15 @@ Weeks count from Monday 2026-11-16. The holidays probably add a week.
 
 | Weeks | Work | Agent-h/week | Tokens/week | Compared with this session |
 |---|---|---|---|---|
-| 1–2 | Phase 0 and spikes | 5–16 | 15–70M | 0.1–0.4× |
-| 2–7 | App port and backend in parallel (**peak**) | 25–42 | 110–175M (up to about 250M) | 0.7–1.1× (up to 1.5×) |
-| 7–10 | 3.0 integration, beta, store | 15–21 | 50–90M | 0.3–0.55× |
-| 10–15 | Premium | 15–26 | 75–110M | 0.45–0.7× |
-| 15+ | Operations | 2–6 | 5–15M | 0.03–0.1× |
+| 1–2 | Phase 0 and spikes | 6–10 | 25–50M | 0.15–0.3× |
+| 2–7 | App port and backend in parallel (**peak**) | 22–26 (heaviest about 32) | 90–110M (heaviest up to about 175M) | 0.55–0.7× (up to 1.1×) |
+| 7–10 | 3.0 integration, beta, store | 12–16 | 50–70M | 0.3–0.45× |
+| 10–15 | Premium | 14–19 | 60–80M | 0.35–0.5× |
+| 15+ | Operations | 2–4 | 5–15M | 0.03–0.1× |
 
-At 5 h/week the same total spreads over about 32 build weeks: about 25–46M a week on average, peaking around 50–120M.
+These rows add up to about 1.3–1.4B. The bottom-up profile (405 agent-hours, about 1.7B) is about 30% higher in every row; see Appendix A.
+
+At 5 h/week the same total spreads over about 32 build weeks: about 25–45M a week on average, peaking around 50–80M.
 
 **Calibration steps:**
 1. **Now:** read `/usage` (or Settings > Usage). The share this session used is the yardstick *P*.
@@ -99,6 +101,8 @@ At 5 h/week the same total spreads over about 32 build weeks: about 25–46M a w
 
 
 ## Appendix A: bottom-up report
+
+*Note: in the Phase 2 item table below, the Claude-hour rows add up to about 110, not the stated 105. The difference is inside the reconciled range.*
 
 ## GitTrends relaunch: bottom-up effort, token and calendar estimate
 
@@ -135,7 +139,7 @@ Doing everything by hand would take about **1,030 engineer-hours**. Claude cuts 
 |---|---|
 | Startup independence | BI, AD, BU, GA |
 | Syncfusion license removal | BI, AD, BU, GA |
-| Legacy endpoint guards (private) | BI, BU, GA |
+| Private Phase 0 items | BI, BU, GA |
 | Privacy and compliance | BI, AD, BU, GA |
 | Test decoupling from GetTestToken | BI, AD, BU, GA |
 | CI to GitHub Actions | BI, BU, GA |
@@ -195,8 +199,8 @@ Each table shows the human-engineer estimate (Human h), Claude agent-hours (Clau
 | Item | Human h | Claude h | Owner h | Reasoning |
 |---|---|---|---|---|
 | Fast-forward master to pr1, rename to main, protect the branch (GA) | 1 | 0.5 | 0.5 | Git commands; the owner approves |
-| Legacy endpoint guards (details private) (BI, GA, BU) | 6 | 2.5 | 1.5 | Claude writes the script; the owner checks the names and runs it |
-| Revoke the old OAuth tokens and reset the secret, wildcard off; revoke the UITestToken PATs and the Syncfusion key (BI, GA) | 1 | 0.5 | 1.0 | Console work is the owner's |
+| Private Phase 0 items (BI, GA, BU) | 6 | 2.5 | 1.5 | Owner runs them |
+| Retire old credentials (details private) (BI, GA) | 1 | 0.5 | 1.0 | Console work is the owner's |
 | Prod pay-as-you-go subscription, $25 budget, locks; spending limit on the MVP VS subscription (BI) | 2 | 0.5 | 1.5 | Billing belongs to the owner |
 | GitHub org; Dev, Staging and Prod GitHub Apps created from manifests (BI, AD, ARCH) | 3 | 1.0 | 2.0 | Manifests avoid mis-clicks; private keys go to the owner |
 | Domain, DNS, Pages custom domain (BI, BU) | 1.5 | 0.5 | 1.0 | |
@@ -450,8 +454,8 @@ The architecture targets 3.0 in 6–8 weeks and 3.1 about 5–6 weeks after 3.0.
 **Phase notes**
 
 - **Phase 0.**
-  - Owner: private security actions for old builds; revoke the old OAuth App tokens and secret, the test PATs and the Syncfusion key; create the production subscription with budget and locks; register the GitHub org and 3 Apps; check the Play upload key and build numbers; install Xcode 27.2; fast-forward master to `main`.
-  - Claude: legacy-guard Bicep; remove dead code; Actions skeleton.
+  - Owner: private Phase 0 items, including retiring old credentials; create the production subscription with budget and locks; register the GitHub org and 3 Apps; check the Play upload key and build numbers; install Xcode 27.2; fast-forward master to `main`.
+  - Claude: remove dead code; Actions skeleton.
   - Day-1 spikes: Functions SDK 1.1.0 under Aspire plus a Flex deploy; a MAUI 11 Android build; an iOS build on a macOS runner; InAppBilling and Toolkit smoke tests.
 - **Phase 1.**
   - Platform: SDK and packages to 11; 47 obsolete calls (CS0618 is an error); UIScene; Shell renderer; AppStore configuration, Android ID, privacy manifest.
@@ -461,7 +465,7 @@ The architecture targets 3.0 in 6–8 weeks and 3.1 about 5–6 weeks after 3.0.
 - **Phase 2.**
   - AppHost and ServiceDefaults; auth and sessions; me, sync and delete endpoints.
   - Webhooks; collector using installation tokens signed in Key Vault; reconcile; backups and purge.
-  - OTel; Bicep for staging, production and legacy; Actions over OIDC; integration tests; health cron.
+  - OTel; Bicep for staging and production; Actions over OIDC; integration tests; health cron.
   - GitHub Pages site.
   - **It must be live in production before the 3.0 beta,** so banking starts early.
 - **Phase 3.**

@@ -6,7 +6,7 @@ Five verifiers were asked to *refute* the key facts behind the plan. They checke
 
 Some hosts were blocked from the research environment, including learn.microsoft.com, azure.microsoft.com and github.blog. A few prices and dates therefore come from search snippets. They are marked *medium confidence* and are on the [verify-before-building list](README.md#14-verify-before-building).
 
-Findings about the exposure of old installed builds are left out of this public file on purpose.
+A few findings are tracked privately.
 
 ## Corrections that changed the plan
 
@@ -758,43 +758,34 @@ pr1:azure-pipelines.yml:117
 
 - What's true: Mostly true, with two nuances.
 
-(1) GitTrendsStatisticsService.Initialize (client ID, statistics, enable-orgs URI) is awaited in all configurations, Debug included. Syncfusion and Libraries are awaited only in non-DEBUG builds.
+(1) Statistics initialization is awaited in all configurations, Debug included. Syncfusion and Libraries are awaited only in non-DEBUG builds.
 
-(2) Each service blocks only when its cache is empty:
-- Statistics: any null value or empty Contributors.
-- Libraries: empty list.
-- Syncfusion: no license in SecureStorage.
-Otherwise the refresh runs in the background (SafeFireAndForget).
-
-So fresh installs, or installs with cleared data, dead-end. Any exception sets isInitializationSuccessful=false, and the splash page shows InitializationFailed with no retry button. App.OnStart allows 15 seconds before cancelling.
-- Plan impact: Make startup local-first. Compile the client ID into the app, use the MIT Syncfusion Toolkit or a bundled license, and make the library list and statistics best-effort and non-blocking. Add a retry or 'continue offline' path. Cache-empty is the state every new relaunch user starts in.
+(2) Each service blocks only when its cache is empty, so fresh installs dead-end with no retry.
+- Plan impact: Make startup local-first. Use compiled defaults, use the MIT Syncfusion Toolkit or a bundled license, and make the library list and statistics best-effort and non-blocking. Add a retry or 'continue offline' path. Cache-empty is the state every new relaunch user starts in.
 - Evidence: pr1:GitTrends/Services/AppInitializationService.cs:34-74 (lines 48-58)
 pr1:GitTrends/Services/GitTrendsStatisticsService.cs:101-131
 pr1:GitTrends/Services/LibrariesService.cs:32-45
 pr1:GitTrends/Services/SyncfusionService.cs:21-45
 pr1:GitTrends/Pages/SplashScreenPage.cs:198-218
 pr1:GitTrends/App.cs:39-49
-The same pattern exists in 2.5.11 (6232ef65:GitTrends/Services/AppInitializationService.cs:58-110).
 
 **6. GetTestToken has a duplicate dictionary key (since 815de5fa) that makes every call throw.**  
 *Verdict: confirmed.*
 
-- What's true: The same key appears twice in the static collection initializer (lines 18 and 20). It appeared when 815de5fa (2025-04-21) renamed the key on line 18 to match line 20; before that the 3 keys were distinct.
+- What's true: The same key appears twice in the static collection initializer (lines 18 and 20). It appeared when 815de5fa (2025-04-21) renamed the key on line 18 to match line 20.
 
 The initializer calls Dictionary.Add, which throws ArgumentException inside the static field initializer. Every access to _testTokenDictionary at line 32 then throws TypeInitializationException, outside the try block, so every invocation fails (HTTP 500 from the Functions host). The function also injects services it never uses.
-- Plan impact: Delete the function. Tests should read a token from a CI secret, and the owner's PATs stored in the old app settings should be revoked.
+- Plan impact: Delete the function. Tests should read a token from a CI secret.
 - Evidence: pr1:GitTrends.Functions/Functions/GetTestToken.cs:16-21, :32, :39
 git show 815de5fa -- GitTrends.Functions/Functions/GetTestToken.cs (one-line change on line 18)
 The latest snapshot file is identical to pr1.
 
-**7. Client OAuth scope is 'public_repo read:user read:org', no PKCE, callback custom scheme gittrends://, client logs users out if token scope lacks 'org'.**  
+**7. Client OAuth scope is 'public_repo read:user read:org', no PKCE, and the client logs users out if the token scope lacks 'org'.**  
 *Verdict: confirmed.*
 
 - What's true: Scope: confirmed (URL-encoded 'public_repo read:user read:org'). public_repo grants write access to public repos.
 
-No PKCE on either side: the authorize URL has client_id, scope and state only (no code_challenge, no redirect_uri). The server exchange sends client_id, client_secret, code and state, with no code_verifier, as a GET with the secret in the query string.
-
-Callback: the app registers the 'gittrends' scheme (Android intent filter, iOS and Mac Catalyst CFBundleURLSchemes). The redirect URL itself is the GitHub OAuth App's registered callback, which is not in the repo, because no redirect_uri is sent.
+No PKCE on either side. Further details of the old flow are in the owner's private notes.
 
 Logout: GitHubUserService.GetGitHubToken calls InvalidateToken() when token.Scope does not contain 'org'. That removes the stored token and sets IsAuthenticated=false, a silent logout. Added in 55c561e7 (2021-06-06).
 - Plan impact: Move to a GitHub App (user-to-server tokens plus installation tokens for server collection) or an OAuth App with PKCE and least privilege. Drop public_repo. Do not log users out based on a scope substring when the auth model changes; plan a migration path for existing tokens.
@@ -802,8 +793,6 @@ Logout: GitHubUserService.GetGitHubToken calls InvalidateToken() when token.Scop
 pr1:GitTrends/Services/GitHubAuthenticationService.cs:87
 pr1:GitTrends.Common/Interfaces/IGitHubAuthApi.cs:8-9
 pr1:GitTrends.Functions/Functions/GenerateGitHubOAuthToken.cs:13-32
-pr1:GitTrends/Platforms/Android/MainActivity.cs:11
-pr1:GitTrends/Platforms/iOS/Info.plist:30-34
 pr1:GitTrends/Services/GitHubUserService.cs:146-150, :191-195
 git log -S 'Contains("org"' -> 55c561e7
 

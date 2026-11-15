@@ -12,7 +12,7 @@
 | [fact-check.md](fact-check.md) | Facts that were checked against primary sources, and the corrections that changed the plan |
 | [model/forecast_model.py](model/forecast_model.py) | The forecast model. Change the prices or assumptions and re-run it |
 
-Phase 0 security actions that relate to the old, still-installed app builds are **not in this public repo**. The owner has them privately.
+Some Phase 0 actions are kept out of this public repo. The owner has them privately.
 
 ---
 
@@ -21,12 +21,12 @@ Phase 0 security actions that relate to the old, still-installed app builds are 
 | Question | Answer |
 |---|---|
 | **What are our gaps?** | Seven groups, listed in §2:<br>1. Accounts and hardware only you have.<br>2. An app that doesn't build on .NET 11 and can't start without its backend.<br>3. No backend at all.<br>4. No Premium plumbing.<br>5. No operations or compliance setup.<br>6. Claude's cloud container can't build .NET or Android yet.<br>7. Business data we don't have. |
-| **How long would it take Claude?** | **About 310 Claude agent-hours** (range 235–415).<br>**About 160 of your hands-on hours** (range 130–210).<br>Your hours set the calendar, not Claude's:<br>• **At 15 h/week:** free 3.0 in stores around week 10 (late Jan 2027); Premium 3.1 around week 15 (early–mid Mar 2027).<br>• **At 5 h/week:** around week 20 (Apr 2027) and week 32 (late Jun–Jul 2027).<br>Done by a human alone, the same work is about 525–1,030 engineer-hours. |
-| **Weekly token usage % on Claude Ultra?** | Anthropic doesn't publish Ultra's weekly limit in tokens, so I can't turn tokens into a % from published numbers. Instead, use this planning session as the yardstick: it processed **about 163M tokens** (about $85–100 at API rates).<br>Weekly usage compared with this session:<br>• **Peak build weeks:** about **0.7–1.1×** this session.<br>• **Typical build weeks:** about **0.45–0.6×**.<br>• **Weeks after launch:** about **0.05–0.1×**.<br>**Open `/usage` now.** If this session used *P*% of your week, budget about *P*% for peak weeks and *P*/2 for typical ones. §9 has a lookup table. |
-| **Revenue vs cost?** | **Costs:** $137–161 a year at 500–2,000 monthly users. Apple's $99 fee is the biggest line; Azure production is only $15–42 a year.<br>**3-year net revenue:** bear $267, base $1,735, bull $11,587.<br>**3-year profit:** **−$156, +$1,289, +$10,824**. Subtract $800 more if you count four months of Ultra as a build cost.<br>**Break-even:** about 5 annual subscribers. |
-| **$10/mo and $100/yr?** | **Keep those prices, but for a later Pro tier.** Launch **Premium at $4.99/mo or $39.99/yr**: 14-day trial on annual, and a $19.99 first year for Founding Members.<br>A $9.99/$99.99-only tier earns about the same over 3 years at base (about 10% less) and more in year 1, with about 2.6× fewer paying users. At this scale price barely matters; user growth does. |
-| **Store everyone's data?** | **Yes. Collect for every user who installs the GitHub App** (with disclosure and an opt-out). It costs about **$0.001–0.005 per user per month**.<br>• **Free users:** the last 12 months are banked quietly, shown as "N days saved".<br>• **Premium:** unlocks that history instantly and keeps it **forever while subscribed**, plus 12 months after a lapse.<br>• **No "forever" tier:** forever costs under $0.05 a month per extra year, so it isn't worth a tier. |
-| **Aspire + OpenTelemetry?** | **Aspire covers local development, telemetry wiring and CI tests:**<br>• the AppHost runs Azurite, Functions, a GitHub mock and a dev tunnel;<br>• ServiceDefaults set up OTel, resilience and health checks;<br>• `Aspire.Hosting.Testing` runs in CI;<br>• OTel runs end to end into Application Insights.<br>**Production is deployed with Bicep and GitHub Actions to Functions Flex Consumption, not `aspire deploy`:**<br>• `aspire deploy` targets Container Apps and requires Azure Container Registry. Basic is about $5/mo, more than the whole backend at 500 users.<br>• .NET 11 Functions container images are broken today.<br>If an Aspire-deploy showcase matters to you, it costs about $5–11/mo once Microsoft fixes the image. That is one of your decisions (§12). |
+| **How long would it take Claude?** | **About 315 Claude agent-hours** (range 235–415).<br>**About 160 of your hands-on hours** (range 130–210), then 1–3 h/week of upkeep after launch.<br>Calendar:<br>• **At 15 h/week:** free 3.0 in stores around week 10 (late Jan 2027); Premium 3.1 around week 15 (late Feb–early Mar 2027). Claude's throughput and Ultra's weekly limit pace weeks 2–7; device QA and App Review pace the rest.<br>• **At 5 h/week:** your hours set the pace. 3.0 around week 20 (Apr 2027), 3.1 around week 32 (late Jun–Jul 2027).<br>Done by a human alone, the same work is about 525–1,030 engineer-hours. |
+| **Weekly token usage % on Claude Ultra?** | Anthropic doesn't publish Ultra's weekly limit in tokens, so I can't turn tokens into a % from published numbers. Instead, use this planning session as the yardstick: it processed **about 163M tokens** (about $85–100 at API rates).<br>Weekly usage compared with this session, at 15 h/week:<br>• **Peak build weeks (2–7):** about **0.55–0.7×** this session, and up to about 1.1× in the heaviest week.<br>• **Typical build weeks:** about **0.35–0.5×**.<br>• **Weeks after launch:** about **0.03–0.1×**.<br>**Open `/usage` now.** If this session used *P*% of your week, budget about 0.6×*P* for peak weeks (up to *P* in the heaviest) and 0.4×*P* for typical ones. §9 has a lookup table. |
+| **Revenue vs cost?** | **Costs:** $137–161 a year at 500–2,000 monthly users. Apple's $99 fee is the biggest line; Azure production is only $18–42 a year.<br>**3-year net revenue:** bear $267, base $1,735, bull $11,587.<br>**3-year profit:** **−$156, +$1,289, +$10,824**. Base and bull include a Pro tier from year 2; without Pro, base is +$1,144.<br>**Claude as a build cost:** subtract $800 for 4 months of Ultra at 15 h/week, or about $1,600 for 8 months at 5 h/week.<br>**Break-even:** about 5 annual subscribers cover the running costs. |
+| **$10/mo and $100/yr?** | **On revenue it's a toss-up, so I recommend on strategy.** Launch **Premium at $4.99/mo or $39.99/yr** (14-day trial on annual, $19.99 first year for Founding Members). Keep $9.99/$99.99 for a later Pro tier.<br>Premium alone and your $9.99/$99.99 tier earn the same over 3 years at base, within about 1%, and your tier earns more in year 1. The ladder wins on 2.6× more paying users and a price at the market median. Which earns more depends on how price-sensitive developers are, and nobody knows that yet. At this scale price barely matters; user growth does. |
+| **Store everyone's data?** | **Yes. Collect for every user who installs the GitHub App**, with disclosure at install and an active choice in the app. It costs well under a cent per user per month: storage is about $0.0002–0.001 per user, and the whole cloud bill is about $0.35–1.50 a month at 500 users.<br>• **Free users:** the last 12 months are banked quietly, shown as "N days saved".<br>• **Premium:** everything banked since install appears the moment they subscribe. It's kept **forever while subscribed**, plus 12 months after a lapse.<br>• **No "forever" tier:** keeping every paid user's history forever adds under $0.01 a month in total per extra year at up to 2,000 users. That isn't worth a tier. |
+| **Aspire + OpenTelemetry?** | **Aspire covers local development, telemetry wiring and CI tests:**<br>• the AppHost runs Azurite, Functions, a GitHub mock and a dev tunnel;<br>• ServiceDefaults set up OTel, resilience and health checks;<br>• `Aspire.Hosting.Testing` runs in CI;<br>• the backend exports OTel to Application Insights; the app passes trace context to the API and sends its own crashes and traces to Sentry.<br>**Production is deployed with Bicep and GitHub Actions to Functions Flex Consumption, not `aspire deploy`:**<br>• `aspire deploy` targets Container Apps and requires Azure Container Registry. Basic is about $5/mo, more than the whole backend at 500 users.<br>• .NET 11 Functions container images are broken today. A net10 backend or a custom Dockerfile works around it.<br>If an Aspire-deploy showcase matters to you, Container Apps costs about $5–11/mo in total (about $4–10 more than Flex). It can ship today with one of those workarounds. That is one of your decisions (§12). |
 | **MVP Azure credit?** | Use it for **staging, load tests and spikes only.** The Visual Studio Enterprise credit terms forbid production. It also doesn't cover Application Insights, and the Functions free grant doesn't apply on it. **Production runs on pay-as-you-go**, which costs about $1–4 a month at our scale. |
 
 ---
@@ -40,7 +40,7 @@ Phase 0 security actions that relate to the old, still-installed app builds are 
 - **Nothing alerted.** There was no monitoring.
 
 **What the old backend did.** It never stored user data. Only the GitHub OAuth code exchange really needed a server. Everything else can move into the app or the build:
-- Client ID and config: a build constant plus `config.json` on GitHub Pages.
+- Config: compiled defaults plus `config.json` on GitHub Pages.
 - Library list: generated at build time.
 - Repo stats: fetched by the client.
 - Syncfusion key: replaced by the free, MIT-licensed `Syncfusion.Maui.Toolkit`.
@@ -65,7 +65,7 @@ Phase 0 security actions that relate to the old, still-installed app builds are 
 
 | Gap | Why it matters |
 |---|---|
-| Phase 0 security actions (sent privately) | They protect people who still have old builds installed. **Do these this week** |
+| Phase 0 setup actions (sent privately) | **Do these this week** |
 | A Mac on macOS 26.6+ with Xcode 27.2, plus one iPhone and one Android phone | iOS signing, device QA, UIScene checks and store screenshots. Claude has no Xcode and no Android emulator |
 | Access to App Store Connect, Play Console, signing certificates and the Play upload key (or Play App Signing) | Without them we can't ship to the same listings |
 | Apple Small Business Program enrollment | Cuts Apple's commission from 30% to 15% |
@@ -78,14 +78,14 @@ Phase 0 security actions that relate to the old, still-installed app builds are 
 
 | Gap | Fix |
 |---|---|
-| .NET 9 MAUI; Compatibility package; Mono-only settings | Retarget to .NET 11 / MAUI 11, which runs on CoreCLR only. Remove the Compatibility package |
+| .NET 9 MAUI; Compatibility package; Mono-only settings; a Mac Catalyst target | Retarget to .NET 11 / MAUI 11, which runs on CoreCLR only. Remove the Compatibility package. Drop Mac Catalyst for 3.x to save time (your decision, §12) |
 | No `UIApplicationSceneManifest`, so .NET 11 iOS builds fail with **MT7199** | Add a SceneDelegate and the manifest |
 | 47 calls to APIs obsoleted in .NET 10 (CS0618 is an error) | Rename to `DisplayAlertAsync`, `FadeToAsync` and so on |
 | Startup waits on the backend | Compiled defaults, background refresh of `config.json`, and no network call on the startup path |
 | `AppStore` build config is broken. The SDK defines `APPSTORE`, so the `#if AppStore` code never compiles; the Sentry DSN is null, so the app likely crashes at launch; Android is debuggable | Fix the config, and add a CI job that builds `-c AppStore` and checks the output |
 | Android `ApplicationId` is `com.minnick.GitTrends`, but the Play listing is `com.minnick.gittrends` | Use lowercase to keep the existing listing |
 | Packages: Syncfusion (paid key), Sharpnado, Shiny 3 (to 6, no migration notes), Plugin.StoreReview, a 758-line Shell renderer that reflects into a private field | Move to Syncfusion Toolkit (MIT), Border and Shadow, and Shiny 6 (or native jobs), and simplify the renderer |
-| OAuth App with `public_repo` (a write scope); the client secret goes in a query string; no PKCE; the app logs users out when the scope lacks "org" | Switch to a read-only GitHub App with PKCE, exchange the code on the server, and remove the org check |
+| OAuth App with `public_repo` (a write scope); a weak code exchange with no PKCE; the app logs users out when the scope lacks "org" | Switch to a read-only GitHub App with PKCE, exchange the code on the server, and remove the org check |
 | Data stops at GitHub's 14 days, and the local database has duplicate rows and unbounded stargazer rows | Add a synced history store, key rows on `databaseId`, and fix the local schema |
 | 79 of 397 test cases (77 of 186 test methods) depend on the dead backend; UI tests use the dead Xamarin.UITest | Rework 80–100 tests against mocks and delete the UI tests |
 | `AnalyticsService.Track` is a no-op at 56 call sites; Sentry samples 100% of traces | Send anonymous events batched on the sync call, and sample Sentry at 5% |
@@ -93,7 +93,7 @@ Phase 0 security actions that relate to the old, still-installed app builds are 
 
 ### C. Backend: none exists
 
-Every Azure resource was deleted, and the 2020-era Functions code is obsolete. Release 3.0 needs:
+The 2020-era backend can't be reused, and its Functions code is obsolete. Release 3.0 needs:
 - auth exchange and sessions;
 - GitHub webhooks;
 - a history collector for every installation;
@@ -181,7 +181,7 @@ flowchart LR
 3. **The server collects traffic for every installation** using installation tokens, so no user needs to be online.
    - It runs daily for everyone until Premium ships, then daily for paid users and weekly for free ones.
    - Weekly still loses nothing, because GitHub keeps 14 days.
-4. **No database.** Table Storage holds about 60 bytes per repo per day, stored only against numeric IDs. Repo names, logins, emails and tokens are never stored.
+4. **No database.** Table Storage holds about 60 bytes of counts per repo per day (a few hundred bytes as stored, with referrer and path snapshots), keyed only by numeric IDs. Repo names, logins, emails and tokens are never stored.
 5. **Functions Flex Consumption with always-ready set to 0.** It bills per execution, and the free grant covers us up to about 2,000 users.
 6. **Purchases go directly to Apple and Google.** RevenueCat sits behind an interface as a fallback only.
 7. **OpenTelemetry everywhere, kept cheap.**
@@ -209,7 +209,7 @@ flowchart LR
 
 **Why collect for everyone.**
 - **It's nearly free.** Lean storage at 500 users is 2–11 GB a year, about $0.09–0.51 a month.
-- **It is the best conversion lever.** When someone subscribes, a year of their history appears at once. Collecting only for subscribers cuts 3-year base profit from $1,289 to $701.
+- **It should be the best conversion lever.** When someone subscribes, everything banked since they installed appears at once, up to 12 months. The forecast assumes this lifts conversion by about 25%. If it does, collecting only for subscribers would cut 3-year base profit from $1,289 to about $701. Gate A (§10) checks the assumption.
 - **It's how users discover the value.** A day-15 local notification says "GitHub just deleted your oldest traffic day. GitTrends saved it."
 
 **Why no "forever" tier.**
@@ -227,14 +227,21 @@ flowchart LR
 | **Premium** | **$4.99** | **$39.99** | 14-day trial on annual. **Founding Member: $19.99 for year 1**, then the price is locked. History UI, referrer and path history, CSV export, cross-device |
 | Pro (later, once demand shows) | $9.99 | $99.99 | Spike push alerts, widgets, web dashboard, multiple accounts, scheduled exports |
 
-**Why not $9.99/$99.99 as the only tier:**
-- **It's high for the market.** $99.99/yr is about 2.5× the North American median for mobile annual plans ($39.99), above Repohistory ($90/yr, or free for 1 repo, and self-hostable), and about 8× RepoEasy (€12/yr).
-- **Freemium conversion is low:** about 2% on iOS and under 1% on Android.
-- **Parity is close to the assumed rate.** The single tier earns more over 3 years only if it converts at **55% or more** of the ladder's rate (49–57% across scenarios). The assumed rate is 50%, so the ladder ends about 10% ahead with 2.6× more paying users.
-- **The single tier wins year 1** ($284 vs $227 net).
-- **The stakes are small** either way: under $200 over 3 years at base.
+**Your $9.99/$99.99 as the only tier, compared with the ladder:**
+- **Revenue is a toss-up.** Premium alone earns $1,590 net over 3 years at base; the single tier earns $1,570.
+  - The single tier pulls ahead if it converts at more than about **51%** of the ladder's rate (49–51% across scenarios). The model assumes 50%.
+  - If developers are more price-sensitive than that, the ladder wins: by 13% if the single tier converts at 45% of the ladder's rate, and by 45% at 35%.
+  - If they are less price-sensitive, the single tier wins: by 28% at 70%.
+- **The single tier wins year 1** ($284 vs $227 net at base), because each payer is worth about twice as much.
+- **The ladder wins on people.** It has about 2.6× more paying users (25 vs 10 at the end of year 3 in base). That means more banked-history advocates and less lumpy revenue.
+- **Market fit favours the ladder.**
+  - $99.99/yr is about 2.5× the North American median for mobile annual plans ($39.99).
+  - It's above Repohistory ($90/yr, free for 1 repo, self-hostable) and about 8× RepoEasy (€12/yr).
+  - Freemium conversion is about 2% overall. The all-app medians are 2.6% on iOS and 0.9% on Android, and freemium is likely lower.
+- **Pro supplies the forecast's 10% lead.** The forecast shows the ladder about 10% ahead ($1,735 vs $1,570 over 3 years) because it also sells Pro at your $9.99/$99.99 from year 2. Pro's build cost isn't in the forecast: 50–75 Claude hours and 20–30 of yours.
+- **The stakes are small.** The gap is about $20 over 3 years at base without Pro, and about $165 with it.
 
-If you want to test price-insensitivity, test $99.99 as Pro, not as the only tier.
+I still recommend the ladder, for its larger paying base and market fit. Your price is a defensible choice too. If you want to test price-insensitivity, the cheapest test is $99.99 as Pro.
 
 ---
 
@@ -249,8 +256,10 @@ If you want to test price-insensitivity, test $99.99 as Pro, not as the only tie
 | Blob backups, queues, transactions | $0.05–0.30 | $0.10–0.60 | $0.50–2 |
 | Key Vault, metric alerts, egress | $0.20–0.35 | about $0.35 | $0.50–1.60 |
 | Log Analytics / App Insights (capped) | $0 | $0 | $0–7 |
-| **Total** | **$0.40–1.50** | **$0.80–3.50** | **$5–31** |
+| **Total** | **$0.35–1.20** | **$0.80–3.50** | **$5–31** |
 | For comparison: Container Apps via `aspire deploy` | $5–11 | $10–20 | $18–40 |
+
+The forecast uses $1.50 at 500 users, which leaves headroom for the daily-collection uplift before Premium.
 
 **Not in the table:**
 - Apple Developer Program, $99/yr: the single largest cost.
@@ -266,7 +275,7 @@ If you want to test price-insensitivity, test $99.99 as Pro, not as the only tie
 | Always-ready instances set to 0; the free grant covers 500–2,000 users | The whole compute bill at our scale |
 | App sync batched to at most once per foreground and every 6 hours | Keeps Flex executions inside the free grant |
 | No Notification Hubs: local notifications in v1, direct APNs and FCM later | $10/mo (Basic) |
-| Log Analytics capped at 0.15 GB/day, 30-day retention, metrics-first, sampled | Stays inside the 5 GB/mo free allowance |
+| Log Analytics capped at 0.15 GB/day, 30-day retention, metrics-first, sampled | Stays within the 5 GB/mo free allowance. If prod and staging both hit their caps, it's about $1/mo over |
 | Public repo, so free GitHub Actions minutes, including macOS | About $31–60/mo |
 | GitHub Pages for landing, policies and `config.json`; DNS at the registrar | $0 instead of an App Service or Azure DNS |
 | Syncfusion Toolkit (MIT) instead of licensed Syncfusion | License cost and key handling |
@@ -282,7 +291,7 @@ If you want to test price-insensitivity, test $99.99 as Pro, not as the only tie
 - paid staging;
 - an EU representative before revenue justifies it.
 
-Together these turn the 3-year base case from +$1,289 into −$1,975.
+Together these four fees turn the 3-year base case from +$1,289 into about −$1,924, or −$1,975 with the pre-optimisation cloud estimate.
 
 ---
 
@@ -315,12 +324,14 @@ Estimates are reconciled from a bottom-up estimate (about 95 work items) and a t
 | **3. Release 3.0, free relaunch** | Startup independence, GitHub App sign-in and install flow, popular paths, star endpoints, consent and teaser, account deletion, privacy paperwork, beta, App Review | about 50 | about 33 | 7–10 → **3.0 live around week 10** | 13–21 → **around week 20** |
 | **4. Release 3.1, Premium** | Purchases on both stores, server verification, entitlements, history UI, CSV, Founding Member offer, demo mode, free users moved to weekly collection | about 90 | about 46 | 9–15 → **3.1 live around week 15** | 20–32 → **around week 32** |
 | **5. Post-launch operations** (12 weeks) | Hotfixes, collector care, dependency updates, restore drill, forecast recalibration, HTTPS OAuth callback | about 33 | about 23 | 15–27 | 32–45 |
-| **Total** | | **about 310** (235–415) | **about 160** (130–210) | | |
+| **Total** | | **about 315** (235–415) | **about 160** (130–210) | | |
 
 **Notes:**
 - **Start date.** Weeks count from Monday 2026-11-16. The holidays probably add a week.
 - **Pro is extra.** Not included above: about 50–75 Claude hours and 20–30 of your hours, 6–10 weeks, and only if demand shows.
-- **The calendar is set by you.** It depends on your hours, device QA, and App Review. Claude's throughput only limits the schedule in weeks 2–7 at 15 h/week, if Ultra's weekly limit runs out.
+- **What sets the calendar.** At 5 h/week, your hours. At 15 h/week, Claude's throughput and Ultra's weekly limit set weeks 2–7; after that, device QA and App Review do.
+- **Upkeep after launch.** After the 12-week post-launch window, budget 1–3 h/week: dependency updates, store policy changes and support. That's about 130–385 hours through November 2029.
+- **Mac Catalyst is not in these numbers.** The latest code targets it. Keeping it adds Claude hours and your QA time on a Mac; I haven't estimated it.
 - **Banking starts before 3.0 ships.** The production collector goes live at the end of Phase 2, so Premium launches with 30+ days of history already saved.
 - **Biggest schedule risk: a repeat of the last port.** It reached code-complete but never shipped. Mitigations: strict scope (no Pro, no UI-test port), a store checklist started in Phase 0, and 3.0 shipped before any Premium work blocks it.
 
@@ -343,27 +354,34 @@ So the honest answer is a token forecast plus a 30-second calibration.
 - 163M tokens processed: 157M cache reads, 4.9M cache writes, 1.4M output.
 - About $85–100 at API rates.
 
-**Forecast tokens per week (central values):**
+**Forecast tokens per week** (central values, from the reconciled 315 agent-hours at about 4.2M tokens per agent-hour):
 
 | Period | At 15 h/week | Compared with this session | At 5 h/week | Compared with this session |
 |---|---|---|---|---|
-| Weeks 1–2 (Phase 0, spikes) | 15–70M | 0.1–0.4× | 15–50M | 0.1–0.3× |
-| **Weeks 2–7 (port and backend in parallel, peak)** | **110–175M** (heaviest week up to about 250M) | **0.7–1.1×** (up to 1.5×) | 50–120M | 0.3–0.7× |
-| 3.0 store weeks and Premium build | 75–110M | 0.45–0.7× | 25–50M | 0.15–0.3× |
+| Weeks 1–2 (Phase 0, spikes) | 25–50M | 0.15–0.3× | 15–35M | 0.1–0.2× |
+| **Weeks 2–7 (port and backend in parallel, peak)** | **90–110M** (heaviest week up to about 175M) | **0.55–0.7×** (up to 1.1×) | 40–60M (weeks 3–14) | 0.25–0.35× (up to 0.5×) |
+| Weeks 7–10 (3.0 integration, beta, store) | 50–70M | 0.3–0.45× | 20–30M | 0.1–0.2× |
+| Weeks 10–15 (Premium) | 60–80M | 0.35–0.5× | 25–35M | 0.15–0.2× |
 | After launch | 5–15M | 0.03–0.1× | 5–15M | 0.03–0.1× |
 | **Whole project** | **about 1.3B** (0.8–2.5B) | about 8× | same total, spread over 32+ weeks | |
 
-**Lookup.** Run `/usage` (or open Settings > Usage) now and read what share of your week this session used. Check that your weekly reset didn't happen during the session. Then:
+The bottom-up estimate alone (405 agent-hours) puts every row about 30% higher. For the conservative case, multiply by 1.3.
 
-| This session used | Peak weeks at 15 h/wk | Typical build weeks | Fits Ultra? |
-|---|---|---|---|
-| 10% | 7–11% (up to 15%) | 5–6% | Easily. Max (5×) might do |
-| 20% | 14–22% (up to 30%) | 9–12% | Easily |
-| 35% | 25–39% (up to 53%) | 16–21% | Yes |
-| 50% | 35–55% (up to 75%) | 23–30% | Yes. Watch peak weeks |
-| 75% | 53–83% (up to 110%) | 34–45% | Peak weeks need sequencing, or usage credits at about $3–5 per agent-hour |
+**Lookup.** Run `/usage` (or open Settings > Usage) now and read what share of your week this session used. Check that your weekly reset didn't happen during the session, and subtract any other Claude use this week. Then:
 
-**Cost comparison.** The whole project is roughly $0.8k–1.4k at API rates, using this session's measured mix of about $0.60 per million tokens, or up to about $1.9k using the estimators' more conservative mix. Ultra for a 4-month build is $800.
+| This session used | Peak weeks at 15 h/wk | Heaviest week | Typical build weeks | Fits Ultra? |
+|---|---|---|---|---|
+| 10% | 6–7% | up to 11% | 4–5% | Easily. Max (5×) would likely do |
+| 20% | 11–14% | up to 22% | 7–10% | Easily |
+| 35% | 19–25% | up to 39% | 12–18% | Yes |
+| 50% | 28–35% | up to 55% | 18–25% | Yes |
+| 75% | 41–53% | up to 83% | 26–38% | Yes. Watch the heaviest week |
+| 90% | 50–63% | up to 99% | 32–45% | Tight in the heaviest week: run the app and backend streams one after the other, or buy usage credits at about $3–5 per agent-hour |
+
+**Cost comparison.**
+- **At API rates,** the whole project is about $0.8k using this session's measured mix (about $0.50–0.60 per million tokens). Using the estimators' more conservative mix ($0.85–1.50 per million), it's $1.1k–1.9k.
+- **On Ultra,** a 4-month build at 15 h/week costs $800. At 5 h/week it runs about 8 months, or about $1,600.
+- **At 5 h/week the weekly load is about half,** so Max ($100/month, "5× Pro") may be enough. Measure with the day-1 spikes before choosing.
 
 **Keeping weekly usage down during implementation.** This planning session ran large multi-agent workflows, which are token-heavy by design. Implementation can use single sessions for most work and keep multi-agent review for the risky pieces: auth, purchases and the collector.
 
@@ -374,7 +392,10 @@ So the honest answer is a token forecast plus a 30-second calibration.
 Model: monthly cohorts with expected-value subscribers.
 - Store fee 15% (Apple Small Business Program; Play 10% plus 5%).
 - About 6% VAT drag outside the US, and 3% refunds.
-- 3.0 launches in February 2027 and Premium in April 2027, about a month behind the 15 h/week calendar. Launching on time changes 3-year profit by only +$28.
+- 3.0 launches in February 2027 and Premium in April 2027, about a month behind the 15 h/week calendar.
+  - Launching on time would add only $28 to 3-year profit.
+  - The 5 h/week dates (April and July 2027) cost about $80.
+- The ladder includes Pro from month 13 in base and month 11 in bull. Without Pro, base 3-year profit is +$1,144.
 - Your build hours aren't costed.
 
 Details and sensitivities are in [forecast.md](forecast.md); the model is in [model/forecast_model.py](model/forecast_model.py).
@@ -388,15 +409,16 @@ Details and sensitivities are in [forecast.md](forecast.md); the model is in [mo
 | Total cost Y1 / Y2 / Y3 | $155 / $133 / $134 | $159 / $141 / $146 | $167 / $175 / $421 |
 | **Profit Y1 / Y2 / Y3** | −$104 / −$35 / −$16 | +$68 / +$459 / +$762 | +$877 / +$3,437 / +$6,510 |
 | **3-year profit** (after $800 of Ultra) | **−$156** (−$956) | **+$1,289** (+$489) | **+$10,824** (+$10,024) |
+| 3-year profit without Pro | −$156 | +$1,144 | +$9,739 |
 | Month 36: net revenue vs cost | $10 vs $1.30 a month | $86 vs $2.40 | $720 vs $43 |
 
 **Break-even:**
 - **Cash:** about 5 annual Premium subscribers at 500–2,000 users (about 1% of users). About 13 if they must also repay $800 of Ultra within 3 years.
 - **Base timing:** cumulative running costs are covered by month 10 (September 2027), and the $800 is repaid by month 30.
-- **Your time:** paying yourself $50/h for your roughly 160 hands-on hours is $8,000. Only the bull path (+$10,024 after Ultra) earns that back within 3 years; base earns about $3 per hour of your time.
+- **Your time:** paying yourself $50/h for your roughly 160 hands-on hours is $8,000. Only the bull path (+$10,024 after Ultra) earns that back within 3 years; base earns about $3 per hour of your build time, or about $1–2 per hour once 1–3 h/week of upkeep is counted.
 
 **Reading it.**
-- The downside is capped at about $150 over 3 years, plus your time.
+- The cash downside is about $150 over 3 years, or about $950 counting $800 of Ultra (about $1,750 at 5 h/week). That holds as long as fixed fees stay at $0, and it excludes your time.
 - Most costs are Apple's fee and the domain, which a free-only relaunch would pay anyway.
 - The upside depends almost entirely on **growing well past the 2020 audience**: landing page, community launch, your .NET and MVP reach.
 - The biggest levers, in order:
@@ -408,10 +430,12 @@ Details and sensitivities are in [forecast.md](forecast.md); the model is in [mo
   Price structure and cloud architecture barely matter at this scale.
 
 **Decision gates:**
-- **Month 6 (May 2027).** On track if: 300+ monthly users, 5+ payers, trial starts of 1.5%+ of users.
-- **Month 12 (November 2027):**
+- **Gate A, about a month after Premium launches** (May 2027 at 15 h/week; about August 2027 at 5 h/week).
+  - On track if: 300+ monthly users, 4+ payers, trial starts of 1.5%+ of users, and most users keeping "save my history" on.
+- **Gate B, about 7 months after Premium** (November 2027 at 15 h/week):
   - **Bear signal** (under 400 users and under 5 payers): freeze feature work and keep running costs at about $11/month. The free app and history banking keep working.
-  - **Bull signal** (over 1,500 users and over 3% paying): build Pro.
+  - **Pro signal** (600+ users and 1.5%+ of them paying, the base path): build Pro.
+  - **Bull signal** (above 1,500 users and 2.5%+ paying): also consider the web dashboard and US web checkout.
 
 ---
 
@@ -421,7 +445,7 @@ Details and sensitivities are in [forecast.md](forecast.md); the model is in [mo
 |---|---|
 | **New .NET 11 toolchain.** The Functions SDK is 1 day old; three key libraries ship net10 builds only | Day-1 spikes, with a net10 fallback (same end of support) |
 | **Collector reliability is the product.** A silent outage longer than 13 days loses days for good | Heartbeat checked by a GitHub Actions cron every 30 minutes that opens an issue on failure, a self-healing scheduler, gap markers, and a poison-queue check |
-| **Unrecoverable data loss.** Table Storage has no point-in-time restore, and the resources were all deleted once before | Weekly and monthly exports to Cool storage, CanNotDelete locks, data-plane RBAC only, re-collection of the last 13 days |
+| **Unrecoverable data loss.** Table Storage has no point-in-time restore | Weekly and monthly exports to Cool storage, CanNotDelete locks, data-plane RBAC only, re-collection of the last 13 days |
 | **Consent friction.** Users see "Read access to administration"; org repos need an org owner to install | Plain-language explainer, a published endpoint allowlist, an "ask your org owner" share sheet, funnel metrics |
 | **GitHub terms and platform changes.** AUP §6 wording; traffic retention or permission changes; private-repo traffic on Free accounts | Ask GitHub in writing before charging; sell features beyond retention; test private repos early |
 | **In-house store integration.** Grace periods, account holds, refunds, account switching | One tier at launch, always re-query the store, sandbox testing on staging, RevenueCat as fallback |
@@ -433,43 +457,55 @@ Details and sensitivities are in [forecast.md](forecast.md); the model is in [mo
 ## 12. Decisions for you
 
 1. **Pricing.** Approve Premium at $4.99/$39.99 with a 14-day annual trial and a $19.99 Founding Member year, with $9.99/$99.99 kept for Pro. The alternative is your $9.99/$99.99 as the only tier.
-2. **Aspire in production.** Recommended: Aspire for local development, tests and telemetry, with Bicep deploying to Flex (about $1–4/mo). The alternative is `aspire deploy` to Container Apps as a showcase: about $5–11/mo more at 500 users, and blocked until the .NET 11 Functions image is fixed.
+2. **Aspire in production.** Recommended: Aspire for local development, tests and telemetry, with Bicep deploying to Flex (about $1–4/mo). The alternative is `aspire deploy` to Container Apps as a showcase. That costs about $5–11/mo in total at 500 users, about $4–10 more than Flex, including the required container registry. Until Microsoft fixes the .NET 11 Functions image, it needs a net10 backend (same end of support, 2028-11-14) or a custom Dockerfile.
 3. **Canonical repo and branch.** Fast-forward this fork's `master` to upstream `main` (2,077 commits, no conflicts) and rename it `main`, or develop in the upstream repo directly.
-4. **Your weekly hours.** 5 h or 15 h per week sets the whole calendar (3.0 around week 10 vs week 20).
-5. **Legal posture.** Confirm with counsel the "collect with disclosure plus opt-out" model, especially for EEA users. Decide on a business contact address, and whether to appoint an EU/UK representative later (about €100–300/yr).
+4. **Your weekly hours.** 5 h or 15 h per week sets the whole calendar: 3.0 around week 10 vs week 20. At 5 h/week, Claude runs about 8 months. That's about $1,600 on Ultra, or about $800 on Max if its limit is enough. On Ultra, base 3-year profit after Claude drops to about −$390.
+5. **Legal posture.** Confirm the consent model with counsel, especially for EEA users. The model is disclosure at install plus an active choice in the app ("Keep saving my history" or "Don't save"), with opt-out and purge at any time. Decide on a business contact address, and whether to appoint an EU/UK representative later (about €100–300/yr).
 6. **GitHub terms.** Email GitHub for written comfort on AUP §6 before charging (recommended), or launch without it.
 7. **Ownership.** Which GitHub org owns the three GitHub Apps (the existing GitTrends org is the natural choice), and which domain to use.
 8. **Legal entity (optional).** It unlocks Microsoft for Startups' $4,800 credit (otherwise $200 for 90 days). Not worth forming one for the credits alone.
+9. **Retention.** Approve:
+   - Free banks a rolling 12 months.
+   - Premium keeps history forever while subscribed, plus 12 months after a lapse.
+   - No separate forever tier.
+   - Family Sharing off for Premium. That setting can't be undone in App Store Connect.
+10. **Mac Catalyst.** The latest code targets it. Recommended: drop it for 3.0 and 3.1 to save time, and revisit later.
 
 ---
 
 ## 13. Info to pull for me
 
 **Urgent (this week):**
-1. The private Phase 0 security checks I sent you, and what you find.
+1. The private Phase 0 checks I sent you, and what you find.
 2. Whether your Apple Developer, App Store Connect and Play Console accounts are active, plus any warnings shown in Play Console.
+3. Your weekly usage, which is *P* for the §9 lookup:
+   - the weekly % in `/usage` (or Settings > Usage) right after this session;
+   - the date your weekly limit resets;
+   - roughly how much other Claude use you had this week.
 
 **Before Phase 1:**
 
-3. From App Store Connect:
+4. From App Store Connect:
    - the last version and build number uploaded, and the app's status;
    - historical downloads, active devices and sessions (App Analytics), for the forecast;
-   - your Small Business Program status.
-4. From Play Console:
+   - your Small Business Program status;
+   - whether the Paid Apps agreement, tax forms and banking are active. They gate Premium and can take weeks.
+5. From Play Console:
    - the last `versionCode`;
    - whether Play App Signing is on, and whether you still have the upload key;
    - historical installs and active users;
-   - confirmation that the package is `com.minnick.gittrends`.
-5. Any other usage history you kept: old App Center or App Insights exports, Sentry stats. I want peak monthly users, the iOS/Android split and repos per user.
-6. Hardware: your Mac's macOS and Xcode versions, and which test devices you have.
-7. The MVP portal benefits page: whether your $150 Visual Studio credit is active, and whether any "Azure sponsorship" option is listed.
-8. Whether you own a domain for GitTrends, and which one you want for `api.<domain>` and the site.
-9. Your answers to the decisions in §12, especially pricing, repo, weekly hours and Aspire deploy.
+   - confirmation that the package is `com.minnick.gittrends`;
+   - whether a payments profile (merchant account) exists and is verified.
+6. Any other usage history you kept: old App Center or App Insights exports, Sentry stats. I want peak monthly users, the iOS/Android split and repos per user.
+7. Hardware: your Mac's macOS and Xcode versions, and which test devices you have.
+8. The MVP portal benefits page: whether your $150 Visual Studio credit is active, and whether any "Azure sponsorship" option is listed.
+9. Whether you own a domain for GitTrends, and which one you want for `api.<domain>` and the site.
+10. Your answers to the decisions in §12, especially pricing, repo, weekly hours, Aspire deploy, retention and Mac Catalyst.
 
 **When implementation starts:**
 
-10. Approve the one-time cloud-environment change for this session, so Claude can download the .NET 11 and Android SDKs.
-11. Create the three GitHub Apps from the manifests I'll generate, then store their keys in Key Vault. Claude never sees the private keys.
+11. Approve the one-time cloud-environment change for this session, so Claude can download the .NET 11 and Android SDKs.
+12. Create the three GitHub Apps from the manifests I'll generate, then store their keys in Key Vault. Claude never sees the private keys.
 
 ---
 
@@ -491,4 +527,6 @@ The plan came out of two multi-agent runs:
 - **Discovery.** 8 agents inventoried the backend, the app's data flow, the build upgrade surface and the git history, and researched .NET 11, Aspire, OTel, Azure and GitHub costs, store economics and Claude plans.
 - **Design.** 5 skeptical verifiers checked the key facts against primary sources. 3 architects proposed designs that a judge scored and merged. Two independent estimators and a financial modeller produced the numbers.
 
-Every correction the verifiers found was applied (see [fact-check.md](fact-check.md)). Figures marked as ranges are honest uncertainty, not padding.
+- **Review.** Three critics then checked the numbers, read the plan as you would, and checked what's safe to publish.
+
+Every correction the verifiers and critics found was applied (see [fact-check.md](fact-check.md)). Figures marked as ranges are honest uncertainty, not padding.

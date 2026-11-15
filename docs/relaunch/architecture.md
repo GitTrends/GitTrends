@@ -355,12 +355,10 @@ builder.Build().Run();
 - **Monitoring:** Log Analytics `log-gittrends-prod` (PerGB2018, 30 days, daily cap 0.15 GB) and workspace-based App Insights `appi-gittrends-prod` with local auth disabled. 2–3 metric alerts.
 - **Guards:** CanNotDelete locks on storage and Key Vault; a $25 budget with alerts at 50/80/100%, plus a cost-anomaly alert.
 
-`rg-gittrends-legacy`: guards for retired endpoints (details are in the owner's private Phase 0 notes).
-
 `rg-gittrends-staging-telemetry`: `appi-gittrends-staging`, capped at 0.03 GB/day. The Visual Studio credit doesn't cover App Insights, so staging telemetry is billed here.
 
 **Staging** (MVP Visual Studio Enterprise NFR subscription, $150/mo credit, spending limit on)
-- `rg-gittrends-staging`: a mirror of prod (Flex app, storage, Key Vault), with no placeholders and no user data.
+- `rg-gittrends-staging`: a mirror of prod (Flex app, storage, Key Vault), with no user data.
 - Its own **GitTrends (Staging)** GitHub App and webhook secret.
 - Targets for Apple sandbox notifications and the Play test-track RTDN topic.
 - Also used for 10k-user load tests against the mock and an optional ACA cost spike.
@@ -488,7 +486,7 @@ builder.Build().Run();
 |---|---|---|---|---|
 | Local | none | AppHost, Azurite, GitHub mock, dev tunnel, dashboard | GitTrends (Dev) | n/a |
 | Staging | MVP VS Enterprise NFR ($150 credit, spending limit on) | TestFlight and Play internal builds, load tests, spikes | GitTrends (Staging) | Apple sandbox URL, Play test RTDN |
-| Prod | Pay-as-you-go ($25 budget) | Everything users touch, plus the legacy endpoint guards | GitTrends | Apple production URL, Play production RTDN |
+| Prod | Pay-as-you-go ($25 budget) | Everything users touch | GitTrends | Apple production URL, Play production RTDN |
 
 **GitHub Actions** (free on a public repo, macOS runners included)
 - `backend.yml`:
@@ -514,7 +512,7 @@ Pin actions by SHA, use NuGet lock files and audit, and group Dependabot updates
 - $99.99 a year is about 2.5× the North American mobile yearly median ($39.99).
 - It is above Repohistory ($90/yr or $9/mo, AGPL, self-hostable) and about 8× RepoEasy (€12/yr).
 - Freemium conversion is about 2% on iOS and below 1% on Android.
-- Comparing annual prices alone, it would need to convert at more than about 40% of the $39.99 rate. The full cohort model in [forecast.md](forecast.md), which includes monthly plans and renewals, puts parity at **49–57%**, against an assumed 50%. So the two options are close, and the ladder gives about 2.6× more paying users.
+- Comparing annual prices alone, it would need to convert at more than about 40% of the $39.99 rate. The full cohort model in [forecast.md](forecast.md), which includes monthly plans and renewals, puts parity at about **51%** for Premium alone (49–57% when Pro sales from year 2 are included), against an assumed 50%. So on revenue the two are a toss-up, and the ladder gives about 2.6× more paying users.
 
 **Why no "forever" tier:** keeping paid repos forever costs under $0.01/mo per extra year at up to 2k users. The owner's $9.99/$99.99 anchor survives as Pro, priced on features that cost real money to run.
 
@@ -528,7 +526,7 @@ Pin actions by SHA, use NuGet lock files and audit, and group Dependabot updates
 | Key Vault | $0.01–0.05 | ~$0.05 | $0.10–0.20 |
 | Log Analytics / App Insights | $0 | $0 | $0 (cap) to $7 |
 | Metric alerts | $0.20–0.30 | ~$0.30 | ~$0.40 |
-| Egress, DNS at registrar, F1 placeholders, Pages, Sentry free, Pub/Sub, Actions | $0 | $0 | $0–1 |
+| Egress, DNS at registrar, Pages, Sentry free, Pub/Sub, Actions | $0 | $0 | $0–1 |
 | **Total** | **$0.40–1.50** | **$0.80–3.50** | **$5–31** |
 | Forever: paid repos in Cold archive (per extra year) | <$0.01 | ~$0.01 | $0.01–0.05 |
 | Forever: everyone kept in Table (per extra year) | +$0.09–0.51 | +$0.36–2.05 | +$1.80–10.30 |
@@ -545,9 +543,8 @@ Pin actions by SHA, use NuGet lock files and audit, and group Dependabot updates
 ## 16. Release plan
 
 **Phase 0, this week**
-- Private security actions for old installed builds (owner has the details).
-- Revoke the old OAuth App's tokens, reset its secret and turn off wildcard callbacks. Delete it after 3.0 ships.
-- Revoke the test personal access tokens and the old Syncfusion key.
+- Private Phase 0 items (owner has the details).
+- Retire the old OAuth App and old credentials (steps in the owner's private notes). Delete the OAuth App after 3.0 ships.
 - Create the prod subscription with its budget and locks.
 - Register the 3 GitHub Apps under an org, each opted out of token expiry.
 - Secure the domain.
