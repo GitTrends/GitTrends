@@ -35,7 +35,7 @@ All verifier corrections are applied.
 | Identity | One read-only **GitHub App** (Administration:read + Metadata:read). The OAuth App is retired. Sign-in uses PKCE with the code exchanged on the backend. User tokens don't expire, so the free app never depends on Azure. |
 | Collection | Server-side, using 1-hour installation tokens for every installation. Disclosed at install, with an active choice in the app. **Daily for everyone until Premium ships, then weekly for free and daily for paid.** |
 | Money | Free; **Premium $4.99/mo or $39.99/yr** (14-day annual trial, Founding Member $19.99 for the first year); Pro $9.99/$99.99 only once Pro features exist. Direct store integration, $0. |
-| Cost | **$0.40–1.50 / $0.80–3.50 / $5–31 a month** at 500 / 2k / 10k users with 1-year retention. Keeping paid users' history forever adds under $0.05/mo per extra year. |
+| Cost | **$0.35–1.20 / $0.80–3.50 / $5–31 a month** at 500 / 2k / 10k users with 1-year retention (the forecast uses $1.50 at 500 for headroom). Keeping paid users' history forever adds under $0.05/mo per extra year in total. |
 | MVP credit | Staging, load tests and spikes only. The terms forbid production, the Functions free grant doesn't apply there, and App Insights isn't covered. |
 
 ## 1. Components
@@ -89,7 +89,7 @@ If Azure goes down:
 | Idle billing | Billed only while executing: 1,000 ms minimum, then 100 ms steps; concurrent executions counted once | A scaled-from-zero replica is billed at the active rate through cooldown. A min-1 replica costs about $4–5 at the idle rate |
 | Extras | Site-scoped managed certificates; rolling updates | Managed dashboard is on by default (`.WithDashboard(false)` to remove; price unpublished); app logs always go to Log Analytics |
 | Patching | Platform patches the OS and .NET | Rebuild images for every patch |
-| Monthly cost at 500 / 2k / 10k users | **$0.40–1.50 / $0.80–3.50 / $5–31** | $5–11 / $10–20 / $18–40 |
+| Monthly cost at 500 / 2k / 10k users | **$0.35–1.20 / $0.80–3.50 / $5–31** | $5–11 / $10–20 / $18–40 |
 
 **When to revisit:** past about 20–30k users, or if the day-1 SDK spike fails. Business logic lives in the host-agnostic `GitTrends.Backend.Core` library, so moving the API to ACA only swaps a thin host layer.
 
@@ -511,7 +511,7 @@ Pin actions by SHA, use NuGet lock files and audit, and group Dependabot updates
 **Why not $10/$100 as the only tier**
 - $99.99 a year is about 2.5× the North American mobile yearly median ($39.99).
 - It is above Repohistory ($90/yr or $9/mo, AGPL, self-hostable) and about 8× RepoEasy (€12/yr).
-- Freemium conversion is about 2% on iOS and below 1% on Android.
+- Freemium conversion is about 2% overall. The all-app medians are 2.6% on iOS and 0.9% on Android, and freemium is likely lower.
 - Comparing annual prices alone, it would need to convert at more than about 40% of the $39.99 rate. The full cohort model in [forecast.md](forecast.md), which includes monthly plans and renewals, puts parity at about **51%** for Premium alone (49–57% when Pro sales from year 2 are included), against an assumed 50%. So on revenue the two are a toss-up, and the ladder gives about 2.6× more paying users.
 
 **Why no "forever" tier:** keeping paid repos forever costs under $0.01/mo per extra year at up to 2k users. The owner's $9.99/$99.99 anchor survives as Pro, priced on features that cost real money to run.
@@ -527,7 +527,7 @@ Pin actions by SHA, use NuGet lock files and audit, and group Dependabot updates
 | Log Analytics / App Insights | $0 | $0 | $0 (cap) to $7 |
 | Metric alerts | $0.20–0.30 | ~$0.30 | ~$0.40 |
 | Egress, DNS at registrar, Pages, Sentry free, Pub/Sub, Actions | $0 | $0 | $0–1 |
-| **Total** | **$0.40–1.50** | **$0.80–3.50** | **$5–31** |
+| **Total** | **$0.35–1.20** | **$0.80–3.50** | **$5–31** |
 | Forever: paid repos in Cold archive (per extra year) | <$0.01 | ~$0.01 | $0.01–0.05 |
 | Forever: everyone kept in Table (per extra year) | +$0.09–0.51 | +$0.36–2.05 | +$1.80–10.30 |
 | Phase 1 daily-for-everyone uplift | $0–0.20 | $0–0.50 | (not used at this scale) |
@@ -544,7 +544,7 @@ Pin actions by SHA, use NuGet lock files and audit, and group Dependabot updates
 
 **Phase 0, this week**
 - Private Phase 0 items (owner has the details).
-- Retire the old OAuth App and old credentials (steps in the owner's private notes). Delete the OAuth App after 3.0 ships.
+- Delete the old OAuth App after 3.0 ships.
 - Create the prod subscription with its budget and locks.
 - Register the 3 GitHub Apps under an org, each opted out of token expiry.
 - Secure the domain.

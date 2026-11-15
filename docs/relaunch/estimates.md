@@ -54,7 +54,7 @@ Weeks count from Monday 2026-11-16. The holidays probably add a week.
 **Project total:** about **1.3B tokens** (0.8–2.5B).
 
 **API-equivalent cost:**
-- At the measured mix (about $0.50–0.60 per million): about $0.8k.
+- At the measured mix (about $0.50–0.60 per million): about $0.65–0.8k.
 - At the estimators' more conservative mix ($0.85–1.50 per million): $1.1k–1.9k.
 
 **Measured anchor (this planning session, 2026-11-15):**
@@ -75,14 +75,14 @@ Weeks count from Monday 2026-11-16. The holidays probably add a week.
 | Weeks | Work | Agent-h/week | Tokens/week | Compared with this session |
 |---|---|---|---|---|
 | 1–2 | Phase 0 and spikes | 6–10 | 25–50M | 0.15–0.3× |
-| 2–7 | App port and backend in parallel (**peak**) | 22–26 (heaviest about 32) | 90–110M (heaviest up to about 175M) | 0.55–0.7× (up to 1.1×) |
+| 2–7 | App port and backend in parallel (**peak**) | 22–26 (heaviest about 32) | 90–110M (heaviest up to about 135M) | 0.55–0.7× (up to 0.8×) |
 | 7–10 | 3.0 integration, beta, store | 12–16 | 50–70M | 0.3–0.45× |
 | 10–15 | Premium | 14–19 | 60–80M | 0.35–0.5× |
 | 15+ | Operations | 2–4 | 5–15M | 0.03–0.1× |
 
 These rows add up to about 1.3–1.4B. The bottom-up profile (405 agent-hours, about 1.7B) is about 30% higher in every row; see Appendix A.
 
-At 5 h/week the same total spreads over about 32 build weeks: about 25–45M a week on average, peaking around 50–80M.
+At 5 h/week the same total spreads over about 32 build weeks: about 25–45M a week on average, with peak weeks around 40–60M (heaviest up to about 80M).
 
 **Calibration steps:**
 1. **Now:** read `/usage` (or Settings > Usage). The share this session used is the yardstick *P*.
@@ -200,7 +200,7 @@ Each table shows the human-engineer estimate (Human h), Claude agent-hours (Clau
 |---|---|---|---|---|
 | Fast-forward master to pr1, rename to main, protect the branch (GA) | 1 | 0.5 | 0.5 | Git commands; the owner approves |
 | Private Phase 0 items (BI, GA, BU) | 6 | 2.5 | 1.5 | Owner runs them |
-| Retire old credentials (details private) (BI, GA) | 1 | 0.5 | 1.0 | Console work is the owner's |
+| Account and console clean-up (BI, GA) | 1 | 0.5 | 1.0 | Console work is the owner's |
 | Prod pay-as-you-go subscription, $25 budget, locks; spending limit on the MVP VS subscription (BI) | 2 | 0.5 | 1.5 | Billing belongs to the owner |
 | GitHub org; Dev, Staging and Prod GitHub Apps created from manifests (BI, AD, ARCH) | 3 | 1.0 | 2.0 | Manifests avoid mis-clicks; private keys go to the owner |
 | Domain, DNS, Pages custom domain (BI, BU) | 1.5 | 0.5 | 1.0 | |
@@ -454,7 +454,7 @@ The architecture targets 3.0 in 6–8 weeks and 3.1 about 5–6 weeks after 3.0.
 **Phase notes**
 
 - **Phase 0.**
-  - Owner: private Phase 0 items, including retiring old credentials; create the production subscription with budget and locks; register the GitHub org and 3 Apps; check the Play upload key and build numbers; install Xcode 27.2; fast-forward master to `main`.
+  - Owner: private Phase 0 items; create the production subscription with budget and locks; register the GitHub org and 3 Apps; check the Play upload key and build numbers; install Xcode 27.2; fast-forward master to `main`.
   - Claude: remove dead code; Actions skeleton.
   - Day-1 spikes: Functions SDK 1.1.0 under Aspire plus a Flex deploy; a MAUI 11 Android build; an iOS build on a macOS runner; InAppBilling and Toolkit smoke tests.
 - **Phase 1.**

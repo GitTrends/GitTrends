@@ -611,7 +611,7 @@ grep of the latest snapshot for UIApplicationSceneManifest|SceneDelegate: no mat
 - The nuspec declares no dependencies.
 - The XML docs and the iOS DLL contain SfCartesianChart, AreaSeries, SplineAreaSeries, DateTimeAxis, NumericalAxis, ChartZoomPanBehavior, ChartTrackballBehavior and ChartLegendIconType.
 - Low-risk indicator: MAUI 10's Controls DLL grants InternalsVisibleTo only to CommunityToolkit assemblies, not Syncfusion. So the .NET 11 removal of those grants, which broke older CommunityToolkit versions, should not affect the Toolkit's use of Controls.
-- Plan impact: Switch Syncfusion.Maui.Charts to the Toolkit, which removes the license handout endpoint. Run an early MAUI 11 smoke build of the trends charts, since the Toolkit is net10-only, and keep Syncfusion.Maui.Charts 35.x (net11) as the fallback.
+- Plan impact: Switch Syncfusion.Maui.Charts to the Toolkit, which removes the license plumbing. Run an early MAUI 11 smoke build of the trends charts, since the Toolkit is net10-only, and keep Syncfusion.Maui.Charts 35.x (net11) as the fallback.
 - Evidence: api.nuget.org registration for syncfusion.maui.toolkit; flat-container nupkg 1.0.12, inspected: LICENSE.txt, nuspec, lib/*/Syncfusion.Maui.Toolkit.xml and .dll.
 
 raw.githubusercontent.com/syncfusion/maui-toolkit/main/maui/src/Syncfusion.Maui.Toolkit.csproj (TargetFrameworks).
@@ -763,9 +763,7 @@ pr1:azure-pipelines.yml:117
 (2) Each service blocks only when its cache is empty, so fresh installs dead-end with no retry.
 - Plan impact: Make startup local-first. Use compiled defaults, use the MIT Syncfusion Toolkit or a bundled license, and make the library list and statistics best-effort and non-blocking. Add a retry or 'continue offline' path. Cache-empty is the state every new relaunch user starts in.
 - Evidence: pr1:GitTrends/Services/AppInitializationService.cs:34-74 (lines 48-58)
-pr1:GitTrends/Services/GitTrendsStatisticsService.cs:101-131
 pr1:GitTrends/Services/LibrariesService.cs:32-45
-pr1:GitTrends/Services/SyncfusionService.cs:21-45
 pr1:GitTrends/Pages/SplashScreenPage.cs:198-218
 pr1:GitTrends/App.cs:39-49
 
@@ -785,14 +783,11 @@ The latest snapshot file is identical to pr1.
 
 - What's true: Scope: confirmed (URL-encoded 'public_repo read:user read:org'). public_repo grants write access to public repos.
 
-No PKCE on either side. Further details of the old flow are in the owner's private notes.
+No PKCE on either side.
 
 Logout: GitHubUserService.GetGitHubToken calls InvalidateToken() when token.Scope does not contain 'org'. That removes the stored token and sets IsAuthenticated=false, a silent logout. Added in 55c561e7 (2021-06-06).
 - Plan impact: Move to a GitHub App (user-to-server tokens plus installation tokens for server collection) or an OAuth App with PKCE and least privilege. Drop public_repo. Do not log users out based on a scope substring when the auth model changes; plan a migration path for existing tokens.
 - Evidence: pr1:GitTrends.Common/Constants/GithubConstants.cs:19 (also GitTrends.Shared/Constants/GithubConstants.cs:19)
-pr1:GitTrends/Services/GitHubAuthenticationService.cs:87
-pr1:GitTrends.Common/Interfaces/IGitHubAuthApi.cs:8-9
-pr1:GitTrends.Functions/Functions/GenerateGitHubOAuthToken.cs:13-32
 pr1:GitTrends/Services/GitHubUserService.cs:146-150, :191-195
 git log -S 'Contains("org"' -> 55c561e7
 

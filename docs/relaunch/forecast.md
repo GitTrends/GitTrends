@@ -67,7 +67,7 @@ The ladder is Free; Premium at $4.99/mo or $39.99/yr with a 14-day annual trial 
 
 **Why these MAU paths.**
 - **Anchor:** about 500 users at the 2020–22 peak, all free.
-- **Bear:** old installs can't start, so returning users must reinstall. Users drop off at the GitHub App "Administration: read" consent, and org repos need an org owner. Free self-hosted archivers and Repohistory ($90/yr; free for 1 repo) take the technical buyers.
+- **Bear:** returning users must install the new version. Users drop off at the GitHub App "Administration: read" consent, and org repos need an org owner. Free self-hosted archivers and Repohistory ($90/yr; free for 1 repo) take the technical buyers.
 - **Base:** the landing page, the owner's MVP and .NET community reach, and the history-vault hook regain and pass the peak.
 - **Bull:** needs a launch moment and word of mouth, reaching 10× the 2020 peak by year 3.
 
@@ -153,7 +153,7 @@ At base user numbers, the single tier's revenue relative to Premium alone depend
 | 0.35 | Premium alone +45% |
 | 0.45 | Premium alone +13% |
 | 0.50 | Premium alone +1% |
-| 0.70 | Single tier +28% |
+| 0.70 | Single tier +38% |
 
 Pro's build cost isn't modelled: 50–75 Claude hours and 20–30 owner hours.
 
@@ -169,7 +169,7 @@ If the owner wants to test price-insensitivity, test $99.99 as the Pro tier rath
 
 | Line | Amount | In the model |
 |---|---|---|
-| Production cloud (pay-as-you-go, Flex + Table) | $0.40–1.50/mo at 500 MAU; $0.80–3.50 at 2k; about $14 at 5k; $5–31 at 10k | High end, interpolated by MAU. $0.50/mo before relaunch. Daily-for-everyone uplift until Premium |
+| Production cloud (pay-as-you-go, Flex + Table) | $0.35–1.20/mo at 500 MAU ($1.50 used in the model for headroom); $0.80–3.50 at 2k; about $14 at 5k; $5–31 at 10k | High end, interpolated by MAU. $0.50/mo before relaunch. Daily-for-everyone uplift until Premium |
 | Cloud stress curve (research, before optimisation) | $2 / $9 / $52 per month | Stress case only |
 | Staging / dev | $2–10/mo | $0, paid by the MVP credit ($6/mo if not) |
 | Apple Developer Program | $99/yr | Months 1, 13, 25 |
@@ -297,13 +297,14 @@ model_params_json holds every default, the scenario overrides, the formulas, and
 
 - **Gate A, month 6 (May 2027, one month after Premium):**
   - Measure: GitHub App install completion rate, the share of users who keep "save my history" on, trial starts, and Founding Member uptake.
-  - On track for base: about 300+ MAU, 5+ payers, trial starts of 1.5%+ of MAU.
+  - On track for base: about 300+ MAU, 4+ payers, trial starts plus Founding Member purchases of 1.5%+ of MAU.
 - **Gate B, month 12 (Nov 2027):**
   - Bear signal: under 400 MAU and under 5 payers. Freeze feature work and keep costs at about $11/month (Apple, domain, cloud). The free app and the vault still run at near-zero cost.
-  - Bull signal: over 1,500 MAU and paid share over 3%. Build Pro (alerts and widgets), and consider the US web checkout link-out (currently 0% Apple fee, but a fee is pending).
+  - Pro signal: 600+ MAU and 1.5%+ of them paying (the base path). Build Pro (alerts and widgets).
+  - Bull signal: 1,500+ MAU and 2.5%+ paying. Also consider the web dashboard and the US web checkout link-out (currently 0% Apple fee, but a fee is pending).
 - **Biggest levers, in order:**
   1. MAU growth beyond the 2020 audience.
-  2. Collecting history for everyone (about 2× profit).
+  2. Collecting history for everyone (about 1.8× profit, if the assumed conversion lift holds).
   3. Keeping fixed fees at $0.
   4. Conversion.
 
